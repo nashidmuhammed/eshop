@@ -36,15 +36,15 @@ const MobNavbar = ({showDrawer}) => {
             }
 
             <Tooltip title="Explore">
-                <AiOutlineAppstore onClick={() => {router.push(`/in/${organizationDetails.shopname}/explore`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200r' />
+                <AiOutlineAppstore onClick={() => {router.push(`/in/${organizationDetails?.shopname}/explore`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200r' />
             </Tooltip>
 
             <Tooltip title="Home">
-                <AiOutlineHome onClick={() => {router.push(`/in/${organizationDetails.shopname}`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200'  />
+                <AiOutlineHome onClick={() => {router.push(`/in/${organizationDetails?.shopname}`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200'  />
             </Tooltip>
             
             <Tooltip title="Cart">
-                <div onClick={() => {router.push(`/in/${organizationDetails.shopname}/cart`)}} className="relative cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200">
+                <div onClick={() => {router.push(`/in/${organizationDetails?.shopname}/cart`)}} className="relative cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200">
                     <HiOutlineShoppingBag />
                     <div className="bg-red-600 rounded-full absolute top-0 right-0 w-[18px] h-[18px] text-[12px] text-white grid place-items-center translate-x-1 -translate-y-1">
                     {cartTotalQty}
@@ -59,9 +59,9 @@ const MobNavbar = ({showDrawer}) => {
                 </div>
             </div> */}
 
-            <Tooltip title="Profile">
-                <UserOutlined onClick={() => {router.push(`/in/${organizationDetails.shopname}/explore`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200' />
-            </Tooltip>
+            {/* <Tooltip title="Profile">
+                <UserOutlined onClick={() => {router.push(`/in/${organizationDetails?.shopname}/explore`)}} className='cursor-pointer hover:text-blue-500 hover:scale-110 transition-transform duration-200' />
+            </Tooltip> */}
 
         </div>        
     </div>

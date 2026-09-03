@@ -48,12 +48,12 @@ const NewProducts = ({organization_id, setLoader}) => {
   return (
     <>
           {/* <div  className="w-60 p-2 bg-white rounded-xl transform transition-all hover:-translate-y-2 duration-300 shadow-lg hover:shadow-2xl mt-4 mb-4 lg:mt-0"> */}
-          <div className='container pt-16 flex justify-between'>
+          <div className='container pt-16 flex justify-between mb-5'>
 
             <h2 className="font-medium text-2xl pb-4"><SoundOutlined style={{color:"orange"}}/> Latest Arrivals</h2>
             <Button onClick={handleClick} >Explore more</Button>
           </div>
-          <div className="bg-gray-100 w-full min-h-3 gap-6 flex-wrap flex justify-center items-center">
+          <div className="lg:container bg-gray-100 w-full min-h-3 gap-1 lg:gap-6 xl:gap-5 flex-wrap flex justify-center items-center">
               
               {productData.map((item, index) => 
               <ProductCard
@@ -63,6 +63,7 @@ const NewProducts = ({organization_id, setLoader}) => {
                 desc={item.description ? truncateString(item.description, 75) : "...\n...\n..."}
                 rating={item.rating}
                 price={item.price}
+                mrp={item.mrp}
                 id={item.id}
                 setLoader={setLoader}
               />

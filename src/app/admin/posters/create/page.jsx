@@ -1,6 +1,6 @@
 'use client';
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Checkbox, Col, Divider, Flex, Form, Input, InputNumber, Modal, Radio, Row, Select, Skeleton, Space, Switch, Tabs, Tooltip, Typography, Upload, message } from 'antd'
+import { Button, Checkbox, Col, ColorPicker, Divider, Flex, Form, Input, InputNumber, Modal, Radio, Row, Select, Skeleton, Space, Switch, Tabs, Tooltip, Typography, Upload, message } from 'antd'
 import React, { useEffect, useState } from 'react'
 import './style.css'
 import toast from 'react-hot-toast';
@@ -118,9 +118,13 @@ const CreatePoster = () => {
             }else{
                 formData.append('image', fileList[0]?.originFileObj)
             }
+
         
             formData.append('is_active', values.is_active);
             formData.append('heading', values.heading);
+            formData.append('heading_color', values.heading_color ? values.heading_color.toHexString() : '#000000');
+            formData.append('sub_heading_color', values.sub_heading_color ? values.sub_heading_color.toHexString() : '#000000');
+            formData.append('button_color', values.button_color ? values.button_color.toHexString() : '#ff89fc');
             formData.append('order', values.view_order);
             formData.append('sub_heading', values.sub_heading ?? '');
             formData.append('description', values.content ?? '');
@@ -231,7 +235,7 @@ const CreatePoster = () => {
             <>
             <Row gutter={16}>
                 <Col xs={24} sm={24} md={12}>
-                    <Form.Item
+                    {/* <Form.Item
                     label="Heading"
                     name="heading"
                     rules={[
@@ -241,7 +245,48 @@ const CreatePoster = () => {
                         },
                     ]}
                     >
-                    <Input />
+                    <Space.Compact
+                        style={{
+                            width: '100%',
+                        }}
+                        >
+                        <Input />
+                        <Form.Item  name="heading_color" >
+                            <ColorPicker defaultValue="#000" />
+                        </Form.Item>
+                    </Space.Compact>
+                    </Form.Item> */}
+                    <Form.Item
+                    label="Heading"
+                    required
+                    >
+                    <Space.Compact
+                        style={{
+                        width: '100%',
+                        }}
+                    >
+                        {/* Input field for heading */}
+                        <Form.Item
+                        name="heading"
+                        noStyle
+                        rules={[
+                            {
+                            required: true,
+                            message: 'Please input poster heading!',
+                            },
+                        ]}
+                        >
+                        <Input placeholder="Enter heading" />
+                        </Form.Item>
+
+                        {/* ColorPicker for heading color */}
+                        <Form.Item
+                        name="heading_color"
+                        noStyle
+                        >
+                        <ColorPicker defaultValue="#000" />
+                        </Form.Item>
+                    </Space.Compact>
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={24} md={12}>
@@ -289,8 +334,19 @@ const CreatePoster = () => {
             
             <Row gutter={16}>
                 <Col xs={24} sm={24} md={12}>
-                    <Form.Item name='sub_heading' label="Sub Heading">
-                    <Input.TextArea  />
+                    <Form.Item label="Sub Heading" >
+                       <Space.Compact
+                        style={{
+                            width: '100%',
+                        }}
+                        >
+                        <Form.Item name='sub_heading'>
+                            <Input.TextArea  />
+                        </Form.Item>
+                        <Form.Item  name="sub_heading_color" >
+                            <ColorPicker defaultValue="#000" />
+                        </Form.Item>
+                        </Space.Compact>
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={24} md={12}>
@@ -301,17 +357,25 @@ const CreatePoster = () => {
             </Row>
             <Row gutter={16}>
                 <Col xs={24} sm={24} md={12}>
-                <Form.Item
-                    label="Button Link"
-                    name="link"
-                    >
-                    <Input />
+                <Form.Item label="Button Link">
+                    <Space.Compact
+                        style={{
+                            width: '100%',
+                        }}
+                        >
+                    <Form.Item name="link" >
+                        <Input />
+                    </Form.Item>
+                        <Form.Item  name="button_color" >
+                            <ColorPicker defaultValue="#ff89fc" />
+                        </Form.Item>
+                    </Space.Compact>
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={24} md={12}>
                 <Form.Item label="Image" valuePropName="fileList" getValueFromEvent={normFile}>
 
-                    <ImgCrop aspect={16 / 5} quality={1} rotationSlider>
+                    <ImgCrop aspect={16 / 7} quality={1} rotationSlider>
                         <Upload
                         name="poster"
                         // listType="picture"
@@ -362,6 +426,7 @@ const CreatePoster = () => {
                     setInitialValues({
                         ...initialValues,
                         view_order:response1.data.data,
+                        // heading_color:"#ffff"
                     })
                     form.setFieldsValue({ view_order: response1.data.next_order });
                     console.log("initialValues=000====>",initialValues);

@@ -36,7 +36,7 @@ const Hero = ({organization_id}) => {
 
     var settings = {
         dots: true,
-        infinite: true,
+        infinite: sliderData.length > 1,
         // speed: 500,
         slidesToShow: 1,
         slidesToScroll: 1,
@@ -83,6 +83,9 @@ const Hero = ({organization_id}) => {
                         mainTitle={item.heading}
                         link={item.link} 
                         description={item.description}
+                        heading_color={item.heading_color}
+                        sub_heading_color={item.sub_heading_color}
+                        button_color={item.button_color}
                     />
                 ))}
             </Slider>

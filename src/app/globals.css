@@ -1,7 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+html {
+  scroll-behavior: smooth; /* Enables smooth scrolling */
+}
 @layer components {
   .header_top__icon_wrapper {
     @apply bg-gray-200 rounded-md p-[6px] text-[14px] cursor-pointer hover:bg-accent hover:text-white;
@@ -127,3 +129,24 @@ body {
     text-wrap: balance;
   }
 } */
+.n-width {
+  width: 20rem; /* Default for very small screens (below 400px) */
+}
+
+@media (min-width: 400px) and (max-width: 520px) {
+  .n-width {
+    width: 11.7rem; /* Width for 400px to 520px screens */
+  }
+}
+
+@media (min-width: 520px) and (max-width: 768px) {
+  .n-width {
+    width: 11.5rem; /* Same width as Tailwind's default or custom */
+  }
+}
+
+@media (min-width: 768px) {
+  .n-width {
+    width: 13.7rem; /* Optionally increase for larger screens */
+  }
+}

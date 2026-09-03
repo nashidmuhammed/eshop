@@ -42,13 +42,14 @@ const SideBar = ({collapsed, setCollapsed, collapsedWidth}) => {
     //     {icon:<SettingOutlined />, label:<Link href='/admin/settings'> Settings</Link>, key:'settings'},
     // ]
     const menuItems = [
-      { icon: <PieChartOutlined />, label: 'Dashboard', premium: true, path: '/admin', key: '1' },
+      { icon: <PieChartOutlined />, label: 'Dashboard', premium: true, path: '/admin/dashboard', key: '1' },
       { icon: <LineChartOutlined />, label: 'Sales', premium: true, path: '/admin/sales', key: 'sales' },
       { icon: <BarChartOutlined />, label: 'Purchase', premium: true, path: '/admin/purchase', key: 'purchase' },
       { icon: <TeamOutlined />, label: 'Customers', premium: true, path: '/admin/customers', key: 'customers' },
       { icon: <ProductOutlined />, label: 'Products', premium: false, path: '/admin/products', key: 'products' },
       { icon: <DesktopOutlined />, label: 'Posters', premium: false, path: '/admin/posters', key: 'posters' },
       { icon: <AppstoreAddOutlined />, label: 'More', premium: false, path: '/admin/more', key: 'more' },
+      { icon: <AppstoreAddOutlined />, label: 'Billing', premium: false, path: '/admin/billing', key: 'billing' },
       { icon: <SettingOutlined />, label: 'Settings', premium: false, path: '/admin/settings', key: 'settings' },
     ];
 
@@ -81,6 +82,8 @@ const SideBar = ({collapsed, setCollapsed, collapsedWidth}) => {
         setSelectedKey(['more'])
       }else if  (pathname.startsWith("/admin/settings")){
         setSelectedKey(['settings'])
+      }else if  (pathname.startsWith("/admin/billing")){
+        setSelectedKey(['billing'])
       }else if  (pathname.startsWith("/admin")){
         setSelectedKey(['1'])
       }
@@ -99,7 +102,7 @@ const SideBar = ({collapsed, setCollapsed, collapsedWidth}) => {
           position: 'fixed',
           insetInlineStart: 0,
           left: 0,
-          bottom: 0,
+          // bottom: 0,
           scrollbarWidth: 'thin',
           scrollbarColor: 'unset',
           zIndex: 1000,

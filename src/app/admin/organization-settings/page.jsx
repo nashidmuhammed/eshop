@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import axiosInstance from '@/utils/axiosInstance';
 import { baseUrl, DotzBaseUrlV1 } from '@/utils/GlobalVariables';
 import toast from 'react-hot-toast';
+import { useUser } from '@/contexts/UserContext';
+import Link from 'next/link';
 
 const OrgSettings = () => {
   const router = useRouter()
@@ -17,6 +19,8 @@ const OrgSettings = () => {
   const pk = queryParams.get('pk');
   console.log("pk------>",pk);
   const base_url = window.location.origin;
+  const { user } = useUser();
+
 //   const api = useAxios()
   const [enableEdit, setEnableEdit] = useState(false)
   const [countries, setCountries] = useState([]);
@@ -371,8 +375,11 @@ useEffect(() => {
                     <Typography.Title type='secondary' level={5}>Software Plan</Typography.Title>
                     {/* <Input value={state?.edition} readOnly style={{backgroundColor:"#ffadd1"}} /> */}
                     <Space.Compact style={{ width: '100%',}} >
-                        <Input  value={state?.edition+" Edition"} readOnly style={{backgroundColor:"#ffadd1"}} />
+                        {/* <Input  value={state?.edition+" Edition"} readOnly style={{backgroundColor:"#ffadd1"}} /> */}
+                        <Input  value={user?.edition === 1 ? 'Lite Edition' : 'Trail Edition'} readOnly style={{backgroundColor:"ffef79"}} />
+                        <Link href="/admin/billing" passHref>
                         <Button disabled={!enableEdit} type="primary">Upgrade</Button>
+                        </Link>
                     </Space.Compact>
                 </div>
             </Flex>

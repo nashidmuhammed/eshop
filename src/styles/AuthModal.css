@@ -1,0 +1,71 @@
+/* Background gradient */
+.modal-background {
+    background: linear-gradient(135deg, #5f939a, #ff6363);
+    padding: 40px;
+    border-radius: 10px;
+  }
+  
+  /* Modal container */
+  .auth-container {
+    width: 100%;
+    max-width: 350px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.5); /* Slight transparency */
+    border-radius: 10px;
+  }
+  
+  /* Input styles */
+  .input-box {
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.1); /* Slight transparency */
+    color: #fff;
+    padding: 10px;
+  }
+  
+  /* Text color for the input */
+  .input-box input {
+    color: #fff;
+  }
+  
+  /* Button styles */
+  .login-btn {
+    background-color: #20c997; /* Teal color */
+    border-radius: 8px;
+    border: none;
+    padding: 10px;
+    font-weight: bold;
+    color: #fff;
+  }
+  
+  /* Forgot password link */
+  .forgot-password {
+    color: #fff;
+    text-align: right;
+    margin-bottom: 10px;
+    display: block;
+  }
+  
+  /* Auth links for signup and validation */
+  .auth-links {
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  .auth-links a {
+    color: #fff;
+    margin: 0 10px;
+    text-decoration: underline;
+  }
+
+  .modal-background {
+    /* background-image: url('path_to_your_polygon_image'); */
+    background-color: #5f939a;
+    background-size: cover;
+    padding: 40px;
+    border-radius: 10px;
+  }
+  .auth-modal.ant-modal .ant-modal-content {
+    padding: 0 !important;
+    border-radius: 12px !important;
+  }

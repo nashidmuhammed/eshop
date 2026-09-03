@@ -62,6 +62,7 @@ const TrendingProducts = ({organization_id, setLoader}) => {
             desc={item.description ? truncateString(item.description, 75) : "...\n...\n..."}
             rating={item.rating}
             price={item.price}
+            mrp={item.mrp}
             id={item.id}
             setLoader={setLoader}
           />

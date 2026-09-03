@@ -1,5 +1,3 @@
-// lib/axiosInstance.js
-
 import axios from 'axios';
 import { baseUrl } from './GlobalVariables';
 import toast from 'react-hot-toast';
@@ -21,6 +19,8 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.log("Errror98765==>", error);
+    
     return Promise.reject(error);
   }
 );
@@ -31,7 +31,13 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   async (error) => {
+    console.log("error--123456==>",error);
+    
     const originalRequest = error.config;
+
+    console.log("error--1=>",error.response.status);
+    console.log("error--2=>",!originalRequest._retry);
+    
 
     if (error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -39,9 +45,25 @@ axiosInstance.interceptors.response.use(
       try {
         // Attempt to refresh the token
         const refreshToken = localStorage.getItem('refresh');
+
+        console.log("Enter==refreshToken==>",refreshToken);
+        
+
+        // If no refresh token is available, redirect to login
+        if (!refreshToken) {
+          toast.error("Session expired, please log in again");
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+
+        console.log("ENTER HRER 57");
+        
+
         const response = await axios.post(`${baseUrl}/accounts/v1/authentication/token/refresh/`, {
           refresh: refreshToken,
         });
+        console.log("enter==response==>",response);
+        
 
         const { access } = response.data;
 
@@ -59,8 +81,10 @@ axiosInstance.interceptors.response.use(
         console.log("refreshError===>",refreshError);
         
         console.log('Refresh token expired, redirecting to login...');
+        toast.error("Session expired, please log in again");
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
         window.location.href = '/login';
-        toast.error("Token expired")
         return Promise.reject(refreshError);
       }
     }

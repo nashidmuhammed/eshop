@@ -12,6 +12,18 @@ const Header = () => {
     // const [newUser, setNewUser] = useState(false);
     // let organization_id = null
 
+    const fetchOrganizationDetails = async () => {
+        try {
+          const response = await axiosInstance.get(DotzBaseUrl+'/v1/organization/organizations/'+organization_id);
+          if (response.status === 1000) {
+            console.log("response--==>",response.data);
+            localStorage.setItem('organizationDetails', JSON.stringify(response.data.data));
+          }
+        } catch (error) {
+          console.error('Error fetching organization:', error);
+        }
+      }
+
     useEffect(() => {
 
         const fetchUserDetails = async () => {
@@ -31,6 +43,7 @@ const Header = () => {
                         if (orgResponse.data.status === 1000) {
                             console.log("response--==>", orgResponse.data);
                             localStorage.setItem('organizationDetails', JSON.stringify(orgResponse.data.data));
+                            fetchOrganizationDetails();
                         }
                     } catch (error) {
                         console.error('Error fetching organization:', error);
@@ -53,21 +66,9 @@ const Header = () => {
             }
         };
 
-        const fetchOrganizationDetails = async () => {
-            try {
-              const response = await axiosInstance.get(DotzBaseUrl+'/v1/organization/organizations/'+organization_id);
-              if (response.status === 1000) {
-                console.log("response--==>",response.data);
-                localStorage.setItem('organizationDetails', JSON.stringify(response.data.data));
-              }
-            } catch (error) {
-              console.error('Error fetching organization:', error);
-            }
-          }
-
         fetchUserDetails();
-        // fetchOrganization();
-        // fetchOrganizationDetails();
+        fetchOrganization();
+        
         }, []);
 
   return (

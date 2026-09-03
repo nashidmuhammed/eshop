@@ -12,6 +12,7 @@ import axiosInstance from '@/utils/axiosInstance';
 import Header from './Header';
 import { DotzBaseUrl } from '@/utils/GlobalVariables';
 import Loader from '@/components/Loader';
+import AdminPage from './AdminPage';
 const { Content, Sider } = Layout;
 
 const App = () => {
@@ -33,8 +34,9 @@ const App = () => {
     {/* {!newUser? */}
     <div>
       <Header />
-      <Loader coming />
-      <DashBoard />
+      {/* <Loader coming /> */}
+      {/* <DashBoard /> */}
+      <AdminPage />
     </div>
     {/* :
     <WelcomePage />} */}

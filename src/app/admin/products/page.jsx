@@ -146,7 +146,7 @@ const ProductList = () => {
         {/* <div style={{display:'flex', justifyContent:'space-between'}}>  */}
 
         <Search style={{width:'50%'}} placeholder="Search product" onSearch={onSearch} enterButton allowClear/>
-        <Space>
+        {/* <Space>
         Product Group:<Select
         defaultValue="All"
         style={{
@@ -169,14 +169,14 @@ const ProductList = () => {
             },
         ]}
         />
-        </Space>
+        </Space> */}
         <div> 
-         <Button className='ml-10'  shape="round" icon={<UploadOutlined />} >
+         {/* <Button className='ml-10'  shape="round" icon={<UploadOutlined />} >
             Import
           </Button>
           <Button className='ml-10' shape="round" icon={<DownloadOutlined />} >
             Export
-          </Button>
+          </Button> */}
           <Button onClick={() => {router.push('products/create')}} className='ml-10' type="primary" shape="round" icon={<PlusCircleOutlined />} >
             Create Product
           </Button>

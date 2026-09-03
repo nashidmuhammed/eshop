@@ -133,9 +133,10 @@ const RegisterOrg = ({isModalVisible, setIsModalVisible}) => {
       const formData = new FormData();
       formData.append('name', formState.organization_name || '');
       formData.append('s_name', formState.shop_name || '');
+      formData.append('shopname', formState.shop_name || '');
       formData.append('tax_type', formState.tax_type || '');
       formData.append('tax_number', formState.taxNumber || '');
-      formData.append('edition', formState.edition || 1);
+      formData.append('edition', formState.edition || 0);
       formData.append('state', formState.state || '');
       formData.append('phone_number', formState.phoneNumber || '');
       formData.append('email', formState.email || '');

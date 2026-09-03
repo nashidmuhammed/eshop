@@ -17,10 +17,10 @@ import { useEffect, useState } from 'react';
 // Premium Feature
 const GeneralSettings = ({handleUpdate, organization}) => {
   const [settings, setSettings] = useState([
-    { group: 0, id: 1, name: 'Enable Notifications', defaultChecked: true, premium: false },
-    { group: 0, id: 'enable_variant', name: (<span>Enable Variant <Tooltip title="Product variants are distinguished by specific attributes, such as size (small, medium, large), color (red, blue, green), or material (cotton, polyester)."><QuestionCircleOutlined /></Tooltip></span>), defaultChecked: false, premium: false },
-    { group: 0, id: 2, name: (<span>Enable SubVariant <Tooltip title="Subvariants are used when a product variant itself can be subdivided into more specific categories. For example, if a t-shirt is a product variant with different colors, a subvariant might be different patterns (striped, plain) within a single color."><QuestionCircleOutlined /></Tooltip></span>), defaultChecked: false, premium: true },
-    { group: 0, id: 3, name: 'Multi unit', defaultChecked: false, premium: true },
+    { group: 0, id: 1, name: 'enable_notification', defaultChecked: true, premium: false },
+    { group: 1, id: 'enable_variant', name: (<span>Enable Variant <Tooltip title="Product variants are distinguished by specific attributes, such as size (small, medium, large), color (red, blue, green), or material (cotton, polyester)."><QuestionCircleOutlined /></Tooltip></span>), defaultChecked: false, premium: false },
+    { group: 1, id: 2, name: (<span>Enable SubVariant <Tooltip title="Subvariants are used when a product variant itself can be subdivided into more specific categories. For example, if a t-shirt is a product variant with different colors, a subvariant might be different patterns (striped, plain) within a single color."><QuestionCircleOutlined /></Tooltip></span>), defaultChecked: false, premium: true },
+    { group: 1, id: 3, name: 'multi_unit', defaultChecked: false, premium: true },
     { group: 0, id: 3, name: 'Payment Gateway', defaultChecked: false, premium: true },
     { group: 0, id: 4, name: 'Dark Mode', defaultChecked: false, premium: true },
     { group: 0, id: 5, name: 'Delivery Tracking', defaultChecked: false, premium: true },

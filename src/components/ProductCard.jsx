@@ -7,7 +7,7 @@ import { AiFillStar, AiOutlineStar } from 'react-icons/ai'
 import { HeartOutlined, ShoppingCartOutlined, EyeOutlined } from '@ant-design/icons';
 import { useCart } from '@/hooks/useCart';
 
-const ProductCard = ({img, title, desc, rating, price, id, setLoader}) => {
+const ProductCard = ({img, title, desc, rating, price, mrp, id, setLoader}) => {
     const router = useRouter();
     const organizationDetails = JSON.parse(localStorage.getItem('organizationDetails'));
     const {handleAddProductToCart, cartProducts} = useCart()
@@ -15,6 +15,7 @@ const ProductCard = ({img, title, desc, rating, price, id, setLoader}) => {
 
     const [cartProduct, setCartProduct] = useState({
         id: id,
+        orgId: organizationDetails ? organizationDetails.id : 'NUlL',
         name: title,
         description: desc,
         category :null,
@@ -37,7 +38,7 @@ const ProductCard = ({img, title, desc, rating, price, id, setLoader}) => {
       }, [cartProducts])
 
     // const shopname = 'nfoursquare'
-      console.log("cart product==>", cartProducts);
+    //   console.log("cart product==>", cartProducts);
       
     const handleClick = () => {
       setLoader(true)
@@ -102,15 +103,27 @@ const ProductCard = ({img, title, desc, rating, price, id, setLoader}) => {
   };
   
   return (
-    <div  className="w-60 p-2 bg-white rounded-xl transform transition-all hover:-translate-y-2 duration-300 shadow-lg hover:shadow-2xl mt-4 mb-4 lg:mt-0">
-            <img src={img ? baseUrl+img : '/box.png'} alt={title} className="h-full object-cover rounded-xl w-full" />
+    // <div  className="w-70 sm:w-[11.5rem] md:w-50 lg:w-60 p-2 bg-white rounded-xl transform transition-all hover:-translate-y-2 duration-300 shadow-lg hover:shadow-2xl mt-4 mb-4 lg:mt-0">
+    <div  className="n-width p-2 bg-white rounded-xl transform transition-all hover:-translate-y-2 duration-300 shadow-lg hover:shadow-2xl mt-4 mb-4 lg:mt-0">
+            <img onClick={handleClick} src={img ? baseUrl+img : '/box.png'} alt={title} className="h-full object-cover rounded-xl w-full cursor-pointer" />
             <div className="p-2">
                 <h2 className="font-bold text-lg mb-2">{title}</h2>
-                <span className="text-xl font-semibold">Rs. {price}.00</span>
+                <span className="text-xl font-semibold"> 
+                    {/* ₹ {price?.toFixed(2)} */}
+                {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(price)}
+                    </span>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-sm line-through opacity-75">Rs. {parseInt(price) + 50}.00</span>
-                    <span className="font-bold text-sm p-2 bg-yellow-300 rounded-s-2xl text-gray-600">Save 10%</span>
+                    {(mrp - price) > 0 &&
+                    <>
+                        <span className="text-sm line-through opacity-75"> 
+                            {/* ₹ {mrp?.toFixed(2)} */}
+                            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(mrp)}
+
+                            </span>
+                        <span className="font-bold text-sm p-2 bg-yellow-300 rounded-s-2xl text-gray-600">Save {((mrp - price) / mrp * 100)?.toFixed(0)}%</span>
+                    </>
+                    }
                 </div>
                 {/* <div className="flex items-center mt-2 gap-1">
                     <img src="images/star.png" alt="" className="w-5" />
@@ -125,16 +138,16 @@ const ProductCard = ({img, title, desc, rating, price, id, setLoader}) => {
                 <p className="text-sm text-gray-600 mt-2 mb-2">{desc}</p>
             </div>
             <div className="flex items-center justify-center gap-2 mb-3">
-                <button className="px-3 py-1 rounded-lg bg-blue-400 hover:bg-blue-500 font-semibold" onClick={handleClick}> <EyeOutlined /> View</button>
+                <button className="px-3 py-1 rounded-lg bg-blue-400 hover:bg-blue-500 font-semibold" onClick={handleClick}> <EyeOutlined /> <span className='hidden md:inline lg:inline'>View</span></button>
                 {!isProductInCart ?
                 <button className="px-3 py-1 rounded-lg bg-gray-300 hover:bg-gray-500" onClick={() => handleAddProductToCart(cartProduct)}>
                     {/* <img src="images/shopping-cart.png" alt="" className="w-6" /> */}
-                    <ShoppingCartOutlined  /> Add
+                    <ShoppingCartOutlined  /> <span className='hidden md:inline lg:inline'>+</span>
                 </button>
                 :
                 <button className="px-3 py-1 rounded-lg bg-yellow-500 hover:bg-yellow-700" onClick={() => {router.push(`/in/${organizationDetails.shopname}/cart`)}}>
                     {/* <img src="images/shopping-cart.png" alt="" className="w-6" /> */}
-                    <ShoppingCartOutlined  /> View
+                    <ShoppingCartOutlined  /> 
                 </button>
                 }
                 <button className="px-3 py-1 rounded-lg bg-gray-300 hover:bg-gray-500">

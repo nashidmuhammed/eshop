@@ -1,6 +1,6 @@
 // components/SettingsComponent.js
 import { useDispatch, useSelector } from 'react-redux';
-import { setTheme, setLanguage, toggleNotifications } from '../redux/settingsSlice';
+import { setTheme, setLanguage, toggleNotifications } from '../redux/slices/settingsSlice';
 
 const SettingsComponent = () => {
   const dispatch = useDispatch();

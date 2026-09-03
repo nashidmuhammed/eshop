@@ -690,7 +690,7 @@ const CreateProduct = () => {
             </Row>
             <Row gutter={16}>
                 <Col xs={24} sm={24} md={12}>
-                    <Form.Item  name="original_price" label="Orginal Sales Price" >
+                    <Form.Item  name="original_price" label="Minimum Sales Price" >
                         <InputNumber
                         addonAfter={<Checkbox disabled> Specific</Checkbox>}
                         style={{ width: '100%', }}

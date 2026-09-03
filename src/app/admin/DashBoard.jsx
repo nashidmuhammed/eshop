@@ -1,8 +1,8 @@
 import { EyeOutlined, RiseOutlined, FallOutlined, ShoppingCartOutlined, ShoppingOutlined, TeamOutlined } from '@ant-design/icons';
-import LineChart from './LineChart';
-import BarGraph from './BarGraph';
-import TopProducts from './TopProducts';
-import TopCustomers from './TopCustomers';
+import LineChart from './dashboard/LineChart';
+import BarGraph from './dashboard/BarGraph';
+import TopProducts from './dashboard/TopProducts';
+import TopCustomers from './dashboard/TopCustomers';
 
 const DashBoard = () => {
   return (

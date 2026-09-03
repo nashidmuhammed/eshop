@@ -4,8 +4,8 @@ import React from 'react'
 
 const Navbar = () => {
     const organizationDetails = JSON.parse(localStorage.getItem('organizationDetails'));
-    const home = `/in/${organizationDetails.shopname}/`
-    const category = `/in/${organizationDetails.shopname}/explore`
+    const home = `/in/${organizationDetails?.shopname}/`
+    const category = `/in/${organizationDetails?.shopname}/explore`
   return (
     <div className='hidden lg:block'>
         <div className="container">
