@@ -29,7 +29,7 @@ export default function StorefrontHeader({
   onCloseCart,
   onOpenAuthModal
 }) {
-  const gradientClass = theme?.gradient || "from-indigo-600 to-violet-600";
+  const gradientClass = theme?.gradient || "from-indigo-600 to-blue-500";
   const primaryBg = theme?.primary || "bg-indigo-600 text-white";
   const ringColor = theme?.ring || "focus:ring-indigo-500";
 
@@ -43,7 +43,7 @@ export default function StorefrontHeader({
   };
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-md bg-white/85 border-b border-slate-100 shadow-sm transition-all duration-300 print:hidden">
+    <header className="sticky top-0 z-40 backdrop-blur-md bg-white/90 border-b border-slate-100 shadow-xs transition-all duration-300 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3 sm:gap-4">
         
         {/* LEFT: LOGO & OPTIONAL BACK BUTTON */}
@@ -61,9 +61,9 @@ export default function StorefrontHeader({
 
           {backHref && <div className="h-4 w-px bg-slate-200 hidden sm:block flex-shrink-0" />}
 
-          <Link href="/" className="flex items-center gap-2.5 cursor-pointer group min-w-0">
-            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr ${gradientClass} flex items-center justify-center text-white shadow-md shadow-slate-200 group-hover:scale-105 transition-transform flex-shrink-0`}>
-              <FiShoppingBag className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+          <Link href={backHref ? backHref : "/"} className="flex items-center gap-2.5 cursor-pointer group min-w-0">
+            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr ${gradientClass} flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform flex-shrink-0`}>
+              <FiShoppingBag className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 leading-tight truncate">
