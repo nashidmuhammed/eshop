@@ -760,13 +760,13 @@ export default function StorefrontProductDetailView({ params = {} }) {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
             {mockFallbackProducts.slice(0, 3).map((item) => (
               <div 
                 key={item.id}
                 className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
               >
-                <div className="relative aspect-square bg-slate-50/60 overflow-hidden p-6 cursor-pointer" onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}>
+                <div className="relative aspect-square bg-slate-50/60 overflow-hidden p-3 sm:p-6 cursor-pointer" onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}>
                   <img 
                     src={getImgSrc(item.images?.[0])} 
                     alt={item.title} 
@@ -774,9 +774,9 @@ export default function StorefrontProductDetailView({ params = {} }) {
                   />
                 </div>
 
-                <div className="p-4 flex flex-col justify-between flex-1">
+                <div className="p-3 sm:p-4 flex flex-col justify-between flex-1">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.brand}</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.brand}</span>
                     <h3 
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
                       className="font-bold text-slate-800 text-xs sm:text-sm hover:text-slate-600 line-clamp-1 cursor-pointer my-1"
@@ -785,13 +785,13 @@ export default function StorefrontProductDetailView({ params = {} }) {
                     </h3>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-3">
-                    <span className={`text-sm font-extrabold ${theme.text}`}>
+                  <div className="flex items-center justify-between pt-2.5 sm:pt-3 border-t border-slate-100 mt-2 sm:mt-3">
+                    <span className={`text-xs sm:text-sm font-extrabold ${theme.text}`}>
                       {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(item.price)}
                     </span>
                     <button
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                      className="px-3 py-1 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="px-2.5 sm:px-3 py-1 rounded-lg border border-slate-200 text-[11px] sm:text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       View
                     </button>

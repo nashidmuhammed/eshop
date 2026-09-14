@@ -24,6 +24,7 @@ import StorefrontMobileNav from '@/components/StorefrontMobileNav';
 import ProductQuickViewModal from '@/components/ProductQuickViewModal';
 import StorefrontHeader from '@/components/StorefrontHeader';
 import StorefrontCartDrawer from '@/components/StorefrontCartDrawer';
+import StorefrontAddToCartBtn from '@/components/StorefrontAddToCartBtn';
 
 const catalogProducts = [
   {
@@ -371,37 +372,36 @@ export default function StorefrontExploreView({ params = {} }) {
 
           {/* RIGHT PRODUCT GRID AREA */}
           <div className="lg:col-span-9 space-y-6">
-            
-            {/* Top Toolbar */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+                       {/* Top Minimal Toolbar */}
+            <div className="bg-white rounded-2xl p-2.5 sm:p-3 border border-slate-100/80 shadow-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsMobileFilterOpen(true)}
-                  className="lg:hidden px-3.5 py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-2"
+                  className="lg:hidden px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors"
                 >
                   <FiFilter className="w-3.5 h-3.5" />
-                  <span>Filters</span>
+                  <span>Filter</span>
                 </button>
-                <span className="text-xs font-semibold text-slate-500">
-                  Showing <span className="font-bold text-slate-800">{filteredProducts.length}</span> products
+                <span className="text-xs text-slate-400 font-medium">
+                  <span className="font-semibold text-slate-700">{filteredProducts.length}</span> items
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {/* Sort Dropdown */}
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 >
-                  <option value="featured">Sort by: Featured</option>
+                  <option value="featured">Featured</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Highest Rated</option>
+                  <option value="rating">Top Rated</option>
                 </select>
 
                 {/* Grid / List View Toggle */}
-                <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl">
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl">
                   <button
                     onClick={() => setViewMode("grid")}
                     className={`p-1.5 rounded-lg transition-all ${
@@ -409,7 +409,7 @@ export default function StorefrontExploreView({ params = {} }) {
                     }`}
                     title="Grid View"
                   >
-                    <FiGrid className="w-4 h-4" />
+                    <FiGrid className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
@@ -418,45 +418,48 @@ export default function StorefrontExploreView({ params = {} }) {
                     }`}
                     title="List View"
                   >
-                    <FiList className="w-4 h-4" />
+                    <FiList className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Products List */}
+            {/* Products List / Grid */}
             {filteredProducts.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm">
-                <div className="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
-                  <FiSearch className="w-8 h-8" />
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-xs">
+                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                  <FiSearch className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">No products match your criteria</h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
-                  Try adjusting your price range, selected categories, or clearing active search keywords.
+                <h3 className="text-sm font-bold text-slate-800 mb-1">No products found</h3>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto mb-4">
+                  Try adjusting filters or search keywords.
                 </p>
                 <button
                   onClick={clearFilters}
-                  className={`px-6 py-2.5 rounded-2xl ${theme.primary} text-xs font-bold shadow-md`}
+                  className={`px-4 py-2 rounded-xl ${theme.primary} text-xs font-semibold shadow-xs`}
                 >
-                  Reset All Filters
+                  Reset Filters
                 </button>
               </div>
             ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
                 {filteredProducts.map((item) => (
                   <div 
                     key={item.id}
-                    className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
+                    className="bg-white rounded-2xl border border-slate-100/90 overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
                   >
-                    <div className="relative aspect-square bg-slate-50 overflow-hidden p-6 cursor-pointer" onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}>
+                    <div 
+                      className="relative aspect-square bg-slate-50/60 overflow-hidden p-2 sm:p-3 cursor-pointer flex items-center justify-center"
+                      onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
+                    >
                       <img 
                         src={item.img} 
                         alt={item.title} 
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
                       
                       {item.tag && (
-                        <span className={`absolute top-4 left-4 px-2.5 py-1 rounded-full text-[10px] font-bold ${theme.primary} shadow-sm`}>
+                        <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-semibold ${theme.primary} shadow-xs`}>
                           {item.tag}
                         </span>
                       )}
@@ -466,120 +469,107 @@ export default function StorefrontExploreView({ params = {} }) {
                           e.stopPropagation();
                           toggleWishlist(item);
                         }}
-                        className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all shadow-sm ${
+                        className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-xs transition-all ${
                           isInWishlist(item.id) 
                             ? 'bg-rose-50 text-rose-500' 
-                            : 'bg-white/80 text-slate-600 hover:bg-white hover:text-rose-500'
+                            : 'bg-white/90 text-slate-400 hover:text-rose-500 hover:bg-white shadow-xs'
                         }`}
                       >
-                        <FiHeart className={`w-4 h-4 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
+                        <FiHeart className={`w-3.5 h-3.5 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
                       </button>
                     </div>
 
-                    <div className="p-5 flex flex-col justify-between flex-1">
+                    <div className="p-3 sm:p-4 flex flex-col justify-between flex-1">
                       <div>
-                        <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                          <span>{item.brand}</span>
-                          <div className="flex items-center gap-1 text-amber-400">
-                            <FiStar className="w-3.5 h-3.5 fill-amber-400" />
-                            <span className="font-bold text-slate-700">{item.rating}.0</span>
-                          </div>
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium truncate mb-0.5">
+                          {item.brand || item.category}
                         </div>
 
                         <h3 
                           onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                          className="font-bold text-slate-800 text-base hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer"
+                          className="font-semibold text-slate-800 text-xs sm:text-sm hover:text-slate-600 transition-colors line-clamp-1 cursor-pointer"
                         >
                           {item.title}
                         </h3>
-                        <p className="text-xs text-slate-500 line-clamp-2 mt-1.5 leading-relaxed">{item.desc}</p>
                       </div>
 
-                      <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className={`text-lg font-extrabold ${theme.text}`}>${item.price}</span>
-                            {item.mrp && <span className="text-xs font-semibold text-slate-400 line-through">${item.mrp}</span>}
-                          </div>
+                      <div className="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100/80 flex items-center justify-between gap-1.5">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className={`text-xs sm:text-sm font-bold ${theme.text}`}>${item.price}</span>
+                          {item.mrp && <span className="text-[10px] text-slate-400 line-through">${item.mrp}</span>}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setQuickViewProduct(item)}
-                            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                            title="Quick View"
-                          >
-                            Preview
-                          </button>
-
-                          <button 
-                            onClick={() => handleAddToCart(item)}
-                            className={`p-2.5 rounded-xl ${theme.primary} shadow-md transition-all transform active:scale-95`}
-                            title="Add to Cart"
-                          >
-                            <FiCartIcon className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <StorefrontAddToCartBtn product={item} theme={theme} />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="space-y-4">
+              /* Minimal High-Visibility List Mode (Horizontal Cards) */
+              <div className="space-y-3">
                 {filteredProducts.map((item) => (
                   <div 
                     key={item.id}
-                    className="bg-white rounded-3xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row items-center gap-6 group"
+                    className="bg-white rounded-2xl border border-slate-100/90 p-3 sm:p-4 shadow-xs hover:shadow-md transition-all flex items-center gap-4 group"
                   >
                     <div 
-                      className="w-full sm:w-44 h-44 rounded-2xl bg-slate-50 p-4 flex-shrink-0 cursor-pointer overflow-hidden relative"
+                      className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl bg-slate-50/80 p-2 flex-shrink-0 cursor-pointer overflow-hidden flex items-center justify-center relative"
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
                     >
                       <img 
                         src={item.img} 
                         alt={item.title} 
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
+                      {item.tag && (
+                        <span className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[8px] font-semibold ${theme.primary}`}>
+                          {item.tag}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex-1 space-y-2 text-center sm:text-left">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{item.brand} • {item.category}</span>
-                      <h3 
-                        onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                        className="text-lg font-bold text-slate-800 hover:text-indigo-600 cursor-pointer transition-colors"
-                      >
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{item.desc}</p>
-                      
-                      <div className="flex items-center justify-center sm:justify-start gap-1 text-amber-400 pt-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <FiStar key={i} className={`w-3.5 h-3.5 ${i < item.rating ? "fill-amber-400" : "text-slate-200"}`} />
-                        ))}
-                        <span className="text-xs text-slate-500 ml-1 font-bold">({item.rating}.0)</span>
-                      </div>
-                    </div>
-
-                    <div className="sm:border-l sm:border-slate-100 sm:pl-6 text-center sm:text-right space-y-3 flex-shrink-0">
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                       <div>
-                        <div className={`text-2xl font-extrabold ${theme.text}`}>${item.price}</div>
-                        {item.mrp && <div className="text-xs font-semibold text-slate-400 line-through">${item.mrp}</div>}
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium truncate">
+                          {item.brand || item.category}
+                        </div>
+                        <h3 
+                          onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
+                          className="text-xs sm:text-base font-semibold text-slate-800 hover:text-slate-600 cursor-pointer transition-colors truncate mt-0.5"
+                        >
+                          {item.title}
+                        </h3>
+                        {item.desc && (
+                          <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5 hidden sm:block">
+                            {item.desc}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="flex sm:flex-col gap-2">
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          className={`px-5 py-2.5 rounded-xl ${theme.primary} font-bold text-xs shadow-md transition-all`}
-                        >
-                          Add to Cart
-                        </button>
-                        <button
-                          onClick={() => setQuickViewProduct(item)}
-                          className="px-5 py-2.5 rounded-xl border border-slate-200 font-semibold text-xs text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          Quick View
-                        </button>
+                      <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-slate-50">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className={`text-sm sm:text-base font-bold ${theme.text}`}>${item.price}</span>
+                          {item.mrp && <span className="text-[10px] sm:text-xs text-slate-400 line-through">${item.mrp}</span>}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleWishlist(item);
+                            }}
+                            className={`p-2 rounded-xl transition-all ${
+                              isInWishlist(item.id) 
+                                ? 'bg-rose-50 text-rose-500' 
+                                : 'bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50'
+                            }`}
+                          >
+                            <FiHeart className={`w-3.5 h-3.5 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
+                          </button>
+
+                          <StorefrontAddToCartBtn product={item} theme={theme} />
+                        </div>
                       </div>
                     </div>
                   </div>

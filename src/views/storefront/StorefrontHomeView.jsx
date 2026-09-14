@@ -26,6 +26,7 @@ import StorefrontMobileNav from '@/components/StorefrontMobileNav';
 import ProductQuickViewModal from '@/components/ProductQuickViewModal';
 import StorefrontHeader from '@/components/StorefrontHeader';
 import StorefrontCartDrawer from '@/components/StorefrontCartDrawer';
+import StorefrontAddToCartBtn from '@/components/StorefrontAddToCartBtn';
 
 const dummyProducts = [
   // Trending Items
@@ -357,21 +358,24 @@ export default function StorefrontHomeView({ params = {} }) {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
             {trendingProducts.map((item) => (
               <div 
                 key={item.id}
-                className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
+                className="bg-white rounded-2xl border border-slate-100/90 overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
               >
-                <div className="relative aspect-square bg-slate-50 overflow-hidden p-6 cursor-pointer" onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}>
+                <div 
+                  className="relative aspect-square bg-slate-50/70 overflow-hidden p-3 sm:p-5 cursor-pointer flex items-center justify-center" 
+                  onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
+                >
                   <img 
                     src={item.img} 
                     alt={item.title} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                   
                   {item.tag && (
-                    <span className={`absolute top-4 left-4 px-2.5 py-1 rounded-full text-[10px] font-bold ${theme.primary} shadow-sm`}>
+                    <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-semibold ${theme.primary} shadow-xs`}>
                       {item.tag}
                     </span>
                   )}
@@ -381,60 +385,37 @@ export default function StorefrontHomeView({ params = {} }) {
                       e.stopPropagation();
                       toggleWishlist(item);
                     }}
-                    className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all shadow-sm ${
+                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-xs transition-all ${
                       isInWishlist(item.id) 
                         ? 'bg-rose-50 text-rose-500' 
-                        : 'bg-white/80 text-slate-600 hover:bg-white hover:text-rose-500'
+                        : 'bg-white/80 text-slate-400 hover:text-rose-500 hover:bg-white'
                     }`}
                   >
-                    <FiHeart className={`w-4 h-4 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
+                    <FiHeart className={`w-3.5 h-3.5 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
                   </button>
                 </div>
 
-                <div className="p-5 flex flex-col justify-between flex-1">
+                <div className="p-2.5 sm:p-4 flex flex-col justify-between flex-1">
                   <div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                      <span>{item.category}</span>
-                      <div className="flex items-center gap-1 text-amber-400">
-                        <FiStar className="w-3.5 h-3.5 fill-amber-400" />
-                        <span className="font-bold text-slate-700">{item.rating}.0</span>
-                      </div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium truncate mb-0.5">
+                      {item.category}
                     </div>
 
                     <h3 
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                      className="font-bold text-slate-800 text-base hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer"
+                      className="font-semibold text-slate-800 text-xs sm:text-sm hover:text-slate-600 transition-colors line-clamp-1 cursor-pointer"
                     >
                       {item.title}
                     </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1.5 leading-relaxed">{item.desc}</p>
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-baseline gap-2">
-                        <span className={`text-lg font-extrabold ${theme.text}`}>${item.price}</span>
-                        {item.mrp && <span className="text-xs font-semibold text-slate-400 line-through">${item.mrp}</span>}
-                      </div>
+                  <div className="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100/80 flex items-center justify-between gap-1.5">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`text-xs sm:text-sm font-bold ${theme.text}`}>${item.price}</span>
+                      {item.mrp && <span className="text-[10px] text-slate-400 line-through">${item.mrp}</span>}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setQuickViewProduct(item)}
-                        className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                        title="Quick View"
-                      >
-                        Preview
-                      </button>
-
-                      <button 
-                        onClick={() => handleAddToCart(item)}
-                        className={`p-2.5 rounded-xl ${theme.primary} shadow-md transition-all transform active:scale-95`}
-                        title="Add to Cart"
-                      >
-                        <FiCartIcon className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <StorefrontAddToCartBtn product={item} theme={theme} />
                   </div>
                 </div>
               </div>
@@ -451,35 +432,38 @@ export default function StorefrontHomeView({ params = {} }) {
           <div className="flex items-end justify-between mb-8">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                Fresh Drops
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                Just Landed
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">New Seasonal Arrivals</h2>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Seasonal Drops</h2>
             </div>
             <Link 
               href={getStoreUrl('/explore')}
-              className={`text-sm font-bold ${theme.text} hover:underline flex items-center gap-1.5`}
+              className="text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
             >
-              <span>Explore full range</span>
+              <span>Explore full collection</span>
               <FiArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
             {newArrivals.map((item) => (
               <div 
                 key={item.id}
-                className="bg-slate-50/50 rounded-3xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
+                className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
               >
-                <div className="relative aspect-square bg-white overflow-hidden p-6 cursor-pointer" onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}>
+                <div 
+                  className="relative aspect-square bg-white overflow-hidden p-3 sm:p-5 cursor-pointer flex items-center justify-center" 
+                  onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
+                >
                   <img 
                     src={item.img} 
                     alt={item.title} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
                   
                   {item.tag && (
-                    <span className="absolute top-4 left-4 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-600 text-white shadow-sm">
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-semibold bg-emerald-600 text-white shadow-xs">
                       {item.tag}
                     </span>
                   )}
@@ -489,60 +473,37 @@ export default function StorefrontHomeView({ params = {} }) {
                       e.stopPropagation();
                       toggleWishlist(item);
                     }}
-                    className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all shadow-sm ${
+                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-xs transition-all ${
                       isInWishlist(item.id) 
                         ? 'bg-rose-50 text-rose-500' 
-                        : 'bg-white/80 text-slate-600 hover:bg-white hover:text-rose-500'
+                        : 'bg-white/80 text-slate-400 hover:text-rose-500 hover:bg-white'
                     }`}
                   >
-                    <FiHeart className={`w-4 h-4 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
+                    <FiHeart className={`w-3.5 h-3.5 ${isInWishlist(item.id) ? 'fill-rose-500' : ''}`} />
                   </button>
                 </div>
 
-                <div className="p-5 flex flex-col justify-between flex-1">
+                <div className="p-2.5 sm:p-4 flex flex-col justify-between flex-1">
                   <div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                      <span>{item.category}</span>
-                      <div className="flex items-center gap-1 text-amber-400">
-                        <FiStar className="w-3.5 h-3.5 fill-amber-400" />
-                        <span className="font-bold text-slate-700">{item.rating}.0</span>
-                      </div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium truncate mb-0.5">
+                      {item.category}
                     </div>
 
                     <h3 
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                      className="font-bold text-slate-800 text-base hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer"
+                      className="font-semibold text-slate-800 text-xs sm:text-sm hover:text-slate-600 transition-colors line-clamp-1 cursor-pointer"
                     >
                       {item.title}
                     </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1.5 leading-relaxed">{item.desc}</p>
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-baseline gap-2">
-                        <span className={`text-lg font-extrabold ${theme.text}`}>${item.price}</span>
-                        {item.mrp && <span className="text-xs font-semibold text-slate-400 line-through">${item.mrp}</span>}
-                      </div>
+                  <div className="mt-2.5 sm:mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`text-xs sm:text-sm font-bold ${theme.text}`}>${item.price}</span>
+                      {item.mrp && <span className="text-[10px] text-slate-400 line-through">${item.mrp}</span>}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setQuickViewProduct(item)}
-                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                        title="Quick View"
-                      >
-                        Preview
-                      </button>
-
-                      <button 
-                        onClick={() => handleAddToCart(item)}
-                        className={`p-2.5 rounded-xl ${theme.primary} shadow-md transition-all transform active:scale-95`}
-                        title="Add to Cart"
-                      >
-                        <FiCartIcon className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <StorefrontAddToCartBtn product={item} theme={theme} />
                   </div>
                 </div>
               </div>

@@ -88,8 +88,8 @@ export const CartContextProvider = (props) => {
 
     const handleCartQtyDecrease = useCallback((product) => {
         let updatedCart;
-        if(product.qty === 1){
-            return toast.error("Oops! Minumum reached")
+        if(product.qty <= 1){
+            return handleRemoveProductfromCart(product);
         }
         if(cartProducts){
             updatedCart = [...cartProducts]
@@ -101,7 +101,7 @@ export const CartContextProvider = (props) => {
             setCartProducts(updatedCart)
             localStorage.setItem('eShopCartItems', JSON.stringify(updatedCart))
         }
-    },[cartProducts])
+    },[cartProducts, handleRemoveProductfromCart])
     
     const handleClearCart = useCallback((product) => {
         setCartProducts(null)

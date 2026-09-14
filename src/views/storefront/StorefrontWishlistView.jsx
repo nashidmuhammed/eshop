@@ -123,20 +123,20 @@ export default function StorefrontWishlistView({ params = {} }) {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
             {wishlistItems.map((item) => (
               <div 
                 key={item.id}
-                className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+                className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group"
               >
                 <div 
-                  className="relative aspect-square bg-slate-50 overflow-hidden p-6 cursor-pointer"
+                  className="relative aspect-square bg-slate-50/70 overflow-hidden p-2 sm:p-3 cursor-pointer flex items-center justify-center"
                   onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
                 >
                   <img 
                     src={getImgSrc(item.img || item.images?.[0])} 
                     alt={item.title || item.name} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   />
 
                   <button 
@@ -145,33 +145,34 @@ export default function StorefrontWishlistView({ params = {} }) {
                       removeFromWishlist(item.id);
                       toast.success("Removed from wishlist");
                     }}
-                    className="absolute top-4 right-4 p-2.5 rounded-full bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 shadow-sm transition-all"
+                    className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 p-2 sm:p-2.5 rounded-full bg-white/90 text-slate-400 hover:text-rose-500 hover:bg-rose-50 shadow-xs transition-all"
                     title="Remove item"
                   >
-                    <FiTrash2 className="w-4 h-4" />
+                    <FiTrash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 </div>
 
-                <div className="p-5 flex flex-col justify-between flex-1">
+                <div className="p-3 sm:p-5 flex flex-col justify-between flex-1">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.category || 'Product'}</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.category || 'Product'}</span>
                     <h3 
                       onClick={() => router.push(getStoreUrl(`/product/${item.id}`))}
-                      className="font-bold text-slate-800 text-base hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer my-1"
+                      className="font-bold text-slate-800 text-xs sm:text-base hover:text-indigo-600 transition-colors line-clamp-1 cursor-pointer my-0.5 sm:my-1"
                     >
                       {item.title || item.name}
                     </h3>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className={`text-lg font-extrabold ${theme.text}`}>${item.price}</span>
+                  <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className={`text-sm sm:text-lg font-extrabold ${theme.text}`}>${item.price}</span>
 
                     <button
                       onClick={() => handleMoveToCart(item)}
-                      className={`px-4 py-2 rounded-xl ${theme.primary} text-xs font-bold shadow-sm flex items-center gap-1.5 transition-transform active:scale-95`}
+                      className={`px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl ${theme.primary} text-[11px] sm:text-xs font-bold shadow-xs flex items-center gap-1 transition-transform active:scale-95`}
                     >
-                      <FiCartIcon className="w-3.5 h-3.5" />
-                      <span>Move to Cart</span>
+                      <FiCartIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">Move to Cart</span>
+                      <span className="sm:hidden">Add</span>
                     </button>
                   </div>
                 </div>
