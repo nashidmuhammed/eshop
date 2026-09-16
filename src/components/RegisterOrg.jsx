@@ -1,86 +1,243 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Select, Row, Col, Typography } from 'antd';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { 
+  Button, 
+  Modal, 
+  Form, 
+  Input, 
+  Select, 
+  Row, 
+  Col, 
+  Steps 
+} from 'antd';
+import { 
+  FiShoppingBag, 
+  FiBriefcase,
+  FiMapPin, 
+  FiFileText, 
+  FiPhone, 
+  FiArrowRight, 
+  FiArrowLeft, 
+  FiCheck, 
+  FiUploadCloud, 
+  FiTrash2,
+  FiTrendingUp,
+  FiCpu,
+  FiRepeat
+} from 'react-icons/fi';
 import { DotzBaseUrl } from '@/utils/GlobalVariables';
 import toast from 'react-hot-toast';
 import axiosInstance from '@/utils/axiosInstance';
 import { useRouter } from 'next/navigation';
-const { Option } = Select;  
+import { useUser } from '@/contexts/UserContext';
 
-const RegisterOrg = ({isModalVisible, setIsModalVisible}) => {
-  const username = JSON.parse(localStorage.getItem('userDetails')).username;
-//   const [isModalVisible, setIsModalVisible] = useState(false);
-//   const [formState, setFormState] = useState({});
-  const router = useRouter()
+const { Option } = Select;
 
-//   const showModal = () => {
-//     setIsModalVisible(true);
-//   };
+const taxTypes = [
+  { name: 'None', id: 4 },
+  { name: 'GSTIN', id: 1 }, 
+  { name: 'Value Added Tax (VAT)', id: 2 },
+  { name: 'Other', id: 3 }
+];
 
-  const handleOk = () => {
-    setIsModalVisible(false);
-  };
+const orgTypes = [
+  { 
+    id: 'TRADING', 
+    title: 'Trading & Retail',
+    badge: 'Buy & Sell',
+    name: 'Trading & Retail',
+    desc: 'For shops, wholesalers, and e-commerce stores purchasing finished items to resell.',
+    icon: FiTrendingUp,
+    color: 'text-blue-600 bg-blue-50 border-blue-100'
+  },
+  { 
+    id: 'MANUFACTURING', 
+    title: 'Manufacturing',
+    badge: 'Production',
+    name: 'Manufacturing',
+    desc: 'For factories, workshops, and brands crafting goods directly from raw materials.',
+    icon: FiCpu,
+    color: 'text-emerald-600 bg-emerald-50 border-emerald-100'
+  },
+  { 
+    id: 'TRADING_MANUFACTURING', 
+    title: 'Hybrid (Mfg + Trade)',
+    badge: 'Hybrid',
+    name: 'Both Mfg & Trade',
+    desc: 'For businesses that produce in-house as well as trade third-party merchandise.',
+    icon: FiRepeat,
+    color: 'text-indigo-600 bg-indigo-50 border-indigo-100'
+  },
+  { 
+    id: 'SERVICE', 
+    title: 'Service Provider',
+    badge: 'Services',
+    name: 'Services',
+    desc: 'For agencies, consultants, and professionals delivering non-physical services.',
+    icon: FiBriefcase,
+    color: 'text-amber-600 bg-amber-50 border-amber-100'
+  }
+];
 
-  const handleCancel = () => {
-    setIsModalVisible(false);
-  };
+const stepFields = [
+  ['organization_name', 'shop_name'],
+  ['org_type'],
+  ['country', 'state'],
+  ['tax_type'],
+  ['email', 'phoneNumber']
+];
 
-  const onFinish = (values) => {
-    // Handle form submission here
-    // setFormState(values);
-    setIsModalVisible(false);
-    handleSubmit(values)
-  };
-
-  // --------
+export default function RegisterOrg({ isModalVisible, setIsModalVisible }) {
+  const router = useRouter();
+  const { user } = useUser();
   const [form] = Form.useForm();
-  const [skipFirstRender, setSkipFirstRender] = useState(true);
-  const [Logo, setLogo] = useState(null);
+  
+  const [currentStep, setCurrentStep] = useState(0);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSlugTouched, setIsSlugTouched] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
-  const [selectedstates, setSelectedStates] = useState([]);
-  const [selectedcontry, setSelectedContry] = useState([]);
-  // const Logo = null
-  const [state, setState] = useState({
-    taxTypes: []
-  })
-  
- 
-  
-  const taxTypes = [
-    {name:'None',id:4},
-    {name:'GSTIN',id:1}, 
-    {name:'Value Added Tax (VAT)',id:2},
-    {name:'Other',id:3}
-  ];
-  const orgTypes = [
-    {name:'Retailers',id:1},
-    {name:'Wholesalers',id:2}, 
-    {name:'Manufactures',id:3},
-    {name:'Distributors',id:4},
-    {name:'Service Providers',id:5},
-    {name:'Marketplaces',id:6},
-    {name:'Dropshippers',id:7},
-    {name:'Subscription Services',id:8},
-  ];
-  const categories = [
-    {name:'Electronics',id:1},
-    {name:'Fashion',id:2}, 
-    {name:'Home & Kitchen',id:3},
-    {name:'Beauty & Personal Care',id:4},
-    {name:'Health & Wellness',id:5},
-    {name:'Sports & Outdoors',id:6},
-    {name:'Automotive',id:7},
-    {name:'Toys & Games',id:8},
-    {name:'Books, Movies & Music',id:9},
-    {name:'Groceries',id:10},
-    {name:'Pet Suppliers',id:11},
-    {name:'Office Suppliers',id:12},
-    {name:'Baby Products',id:13},
-    {name:'Jewelry & Watches',id:14},
-    {name:'Art & Crafts',id:15},
-  ];
+  const [selectedStates, setSelectedStates] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedTaxType, setSelectedTaxType] = useState(4); // Default to None
+
+  const selectedOrgType = Form.useWatch('org_type', form);
+  const formValues = Form.useWatch([], form);
+
+  // Real-time step validation checking
+  const checkIsStepValid = () => {
+    if (!formValues) return false;
+
+    if (currentStep === 0) {
+      const orgNameValid = !!formValues.organization_name?.trim();
+      const shopNameValid = 
+        !!formValues.shop_name?.trim() && 
+        /^[a-zA-Z0-9_-]+$/.test(formValues.shop_name);
+      return orgNameValid && shopNameValid;
+    }
+
+    if (currentStep === 1) {
+      return !!formValues.org_type;
+    }
+
+    if (currentStep === 2) {
+      return !!formValues.country && !!formValues.state;
+    }
+
+    if (currentStep === 3) {
+      const taxTypeValid = formValues.tax_type !== undefined && formValues.tax_type !== null;
+      if (formValues.tax_type !== 4) {
+        return taxTypeValid && !!formValues.taxNumber?.trim();
+      }
+      return taxTypeValid;
+    }
+
+    if (currentStep === 4) {
+      if (formValues.email?.trim()) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.email);
+      }
+      return true;
+    }
+
+    return true;
+  };
+
+  const isStepValid = checkIsStepValid();
+
+  // Fetch Countries & States
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch(`${DotzBaseUrl}/v1/main/list_country/`);
+        const data = await response.json();
+        setCountries(data);
+      } catch (error) {
+        console.error('Error fetching countries:', error);
+      }
+    };
+
+    const fetchStates = async () => {
+      try {
+        const response = await fetch(`${DotzBaseUrl}/v1/main/list_state/`);
+        const data = await response.json();
+        setStates(data);
+      } catch (error) {
+        console.error('Error fetching states:', error);
+      }
+    };
+
+    fetchCountries();
+    fetchStates();
+  }, []);
+
+  // Auto-fill Contact Email/Phone from UserContext when modal opens
+  useEffect(() => {
+    if (isModalVisible && user) {
+      const currentEmail = form.getFieldValue('email');
+      const currentPhone = form.getFieldValue('phoneNumber');
+      
+      if (!currentEmail && user.email) {
+        form.setFieldsValue({ email: user.email });
+      }
+      if (!currentPhone && (user.phoneNumber || user.phone)) {
+        form.setFieldsValue({ phoneNumber: user.phoneNumber || user.phone });
+      }
+    }
+  }, [isModalVisible, user, form]);
+
+  // Filter States when Country changes
+  useEffect(() => {
+    if (selectedCountry) {
+      const filtered = states.filter(state => state.country === selectedCountry);
+      setSelectedStates(filtered);
+    } else {
+      setSelectedStates([]);
+    }
+  }, [states, selectedCountry]);
+
+  const slugify = (text) => {
+    return (text || '')
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[\s\W-]+/g, '-') // Replace spaces and non-alphanumeric chars with hyphen
+      .replace(/^-+|-+$/g, '');   // Remove leading/trailing hyphens
+  };
+
+  const handleOrgNameChange = (e) => {
+    const orgName = e.target.value;
+    if (!isSlugTouched) {
+      const generatedSlug = slugify(orgName);
+      form.setFieldsValue({ shop_name: generatedSlug });
+    }
+  };
+
+  const handleCountryChange = (val) => {
+    setSelectedCountry(val);
+    form.setFieldsValue({ state: undefined });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveLogo = (e) => {
+    if (e) e.stopPropagation();
+    setLogoFile(null);
+    setLogoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const validateShopName = (_, value) => {
     const regex = /^[a-zA-Z0-9_-]+$/;
@@ -91,352 +248,625 @@ const RegisterOrg = ({isModalVisible, setIsModalVisible}) => {
     }
     return Promise.resolve();
   };
-  const handleCountryChange = (value) => {
-    setSelectedContry(value);
-    };
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    setLogo(file);
 
-
-    // if (file) {
-    //   const reader = new FileReader();
-
-    //   reader.onload = (e) => {
-    //     props.setLogo(e.target.result)
-    //   };
-
-    //   reader.readAsDataURL(file);
-    // }
+  // Step Navigation Validation
+  const handleNext = async () => {
+    try {
+      const currentFieldsToValidate = stepFields[currentStep];
+      if (currentFieldsToValidate && currentFieldsToValidate.length > 0) {
+        await form.validateFields(currentFieldsToValidate);
+      }
+      setCurrentStep(prev => prev + 1);
+    } catch (errorInfo) {
+      console.log('Validation failed:', errorInfo);
+    }
   };
 
-  const handleSubmit = async(formState) => {
+  const handlePrev = () => {
+    setCurrentStep(prev => Math.max(0, prev - 1));
+  };
+
+  const handleCancel = () => {
+    setIsModalVisible(false);
+    setCurrentStep(0);
+    setIsSlugTouched(false);
+  };
+
+  // Final Submission
+  const handleSubmit = async () => {
     try {
-      // console.log('called submit');
-      // const postData = {
-      //   name: formState.organization_name,
-      //   s_name: null,
-      //   tax_type: formState.tax_type,
-      //   tax_number: formState.taxNumber,
-      //   crn_number: null,
-      //   logo: Logo, // or any other representation of your logo
-      //   website: null,
-      //   edition: formState.edition || 1,
-      //   state: formState.state,
-      //   phone_number: formState.phoneNumber,
-      //   email: formState.email,
-      // };
-    //   console.log("state===>: " + state);
-        console.log('formState:', formState);
+      await form.validateFields();
+      const formValues = form.getFieldsValue(true);
+      setIsSubmitting(true);
 
-      
       const formData = new FormData();
-      formData.append('name', formState.organization_name || '');
-      formData.append('s_name', formState.shop_name || '');
-      formData.append('shopname', formState.shop_name || '');
-      formData.append('tax_type', formState.tax_type || '');
-      formData.append('tax_number', formState.taxNumber || '');
-      formData.append('edition', formState.edition || 0);
-      formData.append('state', formState.state || '');
-      formData.append('phone_number', formState.phoneNumber || '');
-      formData.append('email', formState.email || '');
-      formData.append('website', formState.website || '');
-      formData.append('crn_number', formState.crn_number || '');
-      formData.append('street', formState.street || '');
-      formData.append('logo', Logo);
+      formData.append('name', formValues.organization_name || '');
+      formData.append('s_name', formValues.shop_name || '');
+      formData.append('shopname', formValues.shop_name || '');
+      formData.append('tax_type', formValues.tax_type || '');
+      formData.append('tax_number', formValues.taxNumber || '');
+      formData.append('edition', formValues.edition || 0);
+      formData.append('state', formValues.state || '');
+      formData.append('phone_number', formValues.phoneNumber || user?.phone_number || user?.phone || '');
+      formData.append('email', formValues.email || user?.email || '');
+      formData.append('website', formValues.website || '');
+      formData.append('crn_number', formValues.crn_number || '');
+      formData.append('building', formValues.building || '');
+      formData.append('city', formValues.city || '');
+      formData.append('street', formValues.street || '');
+      formData.append('pin', formValues.pin || '');
+      formData.append('org_type', formValues.org_type || '');
 
-      const response = await axiosInstance.post(DotzBaseUrl+'/v1/organization/organizations/',formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      // console.log('called submit=respose==>',response);
-      if (response.data.status === 1000){
-        toast.success(response.data.message)
-        setState({
-          country:'',
-            logo:'',
-            taxTypes:''
-        });
-        // setNewOrg(false);
-        // setNewUser(false);
-        router.push('/admin')
-      }else if (response.data.status === 1001){
-        toast.error(response.data.error)
+      if (logoFile) {
+        formData.append('logo', logoFile);
       }
-      else{
-        toast.error(response.data.message)
+
+      const response = await axiosInstance.post(
+        `${DotzBaseUrl}/v1/organization/organizations/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      if (response.data.status === 1000) {
+        toast.success(response.data.message || 'Organization registered successfully!');
+        setIsModalVisible(false);
+        form.resetFields();
+        setLogoFile(null);
+        setLogoPreview(null);
+        setCurrentStep(0);
+        setIsSlugTouched(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        router.push('/admin');
+      } else if (response.data.status === 1001) {
+        toast.error(response.data.error || response.data.message);
+      } else {
+        toast.error(response.data.message || 'Registration failed');
       }
-    } catch (error){
-      console.error('Error fetching data:', error);
-      // setLoader(false); // Disable the loader in case of an error
-      toast.error("Something went wrong!, please try again")
+    } catch (error) {
+      console.error('Error registering organization:', error);
+      toast.error('Something went wrong! Please check the fields and try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    // Function to fetch the list of countries
-    const fetchCountries = async () => {
-      try {
-        const response = await fetch(`${DotzBaseUrl}/v1/main/list_country/`);
-        const data = await response.json();
-        setCountries(data); // Assuming the API response is an array of countries
-      } catch (error) {
-        console.error('Error fetching countries:', error);
-      }
-    };
+  const stepsItems = [
+    {
+      title: 'Profile',
+      icon: <FiShoppingBag className="w-4 h-4" />
+    },
+    {
+      title: 'Business Model',
+      icon: <FiBriefcase className="w-4 h-4" />
+    },
+    {
+      title: 'Address',
+      icon: <FiMapPin className="w-4 h-4" />
+    },
+    {
+      title: 'Tax & Legal',
+      icon: <FiFileText className="w-4 h-4" />
+    },
+    {
+      title: 'Review',
+      icon: <FiPhone className="w-4 h-4" />
+    }
+  ];
 
-    // Function to fetch the list of states
-    const fetchStates = async () => {
-      try {
-        const response = await fetch(`${DotzBaseUrl}/v1/main/list_state/`);
-        const data = await response.json();
-        setStates(data); // Assuming the API response is an array of states
-      } catch (error) {
-        console.error('Error fetching states:', error);
-      }
-    };
+  const currentValues = form.getFieldsValue(true);
 
-    // Call both API functions when the component mounts
-    fetchCountries();
-    fetchStates();
-  }, []);
-
-  useEffect(() => {
-    // Filter the states based on the selected country ID
-    const filteredStates = states.filter(state => state.country === selectedcontry);
-    setSelectedStates(filteredStates);
-  }, [states, selectedcontry]);
   return (
     <Modal
-        title="Register Your Organization"
-        open={isModalVisible}
-        onOk={handleOk}
-        onCancel={handleCancel}
-        footer={null}
-        centered
-        width={1250}
-      >
-        <Form encType="multipart/form-data" onFinish={onFinish} form={form}   name="register" style={{marginTop:'15px',padding:'10px'}}>
-          <Row gutter={16}>
-                <Col xs={24} sm={20}>
-                <Form.Item
-                        name="organization_name"
-                        label="Organization Name"
-                        rules={[{ required: true, message: 'Please enter organization name' }]}
-                    >
-                    <Input placeholder='Company name' />
-                </Form.Item>
-                    
-                </Col>
-                <Col  className='hidden md:block'>
-                <img
-                  src={Logo?.url ? (Logo.url) : 'https://www.pinclipart.com/picdir/middle/357-3579339_unknown-person-icon-png-wordpress-clipart.png'}
-                  alt="avatar"
-                  style={{ maxWidth: '100%', maxHeight: '60px', textAlign: 'right' }}
-                />
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={20}>
-                <Form.Item
-                  name="shop_name"
-                  label="Unique Name"
-                  tooltip="Unique name for the organization. This name will be used to generate a custom link for your organization. eg: www.eshop.nfour.com/in/shop-name"
-                  rules={[
-                    { required: true, message: 'Please input the unique name!' },
-                    { validator: validateShopName }
-                  ]}
-                >
-                  <Input placeholder="shop-name" />
-                </Form.Item>
-                </Col>
-                {/* <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="City"
-                    name="city"
-                    >
-                    <Input placeholder="City" />
-                    </Form.Item>
-                </Col> */}
-            </Row>
-          
-          
-            <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                    <Form.Item
-                    tooltip="Your Organization is registered with any Tax based on your country?"
-                    label="Tax Type"
-                    name="tax_type"
+      title={
+        <div className="py-1">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Register Your Organization</h2>
+          <p className="text-xs text-slate-400 font-normal mt-0.5">
+            Complete the multi-step form to launch your dedicated storefront
+          </p>
+        </div>
+      }
+      open={isModalVisible}
+      onCancel={handleCancel}
+      footer={null}
+      centered
+      width={820}
+      className="rounded-3xl overflow-hidden"
+    >
+      <div className="pt-1 pb-2">
+        
+        {/* Stepper Header */}
+        <div className="bg-slate-50/80 rounded-2xl p-3 mb-4 border border-slate-100">
+          <Steps 
+            current={currentStep} 
+            items={stepsItems}
+            size="small"
+            responsive
+          />
+        </div>
+
+        <Form 
+          form={form} 
+          layout="vertical"
+          initialValues={{
+            tax_type: 4
+          }}
+          className="px-1"
+        >
+
+          {/* STEP 0: GENERAL PROFILE */}
+          {currentStep === 0 && (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="border-b border-slate-100 pb-2 mb-4">
+                <h3 className="text-sm font-bold text-slate-800">Organization Identity</h3>
+                <p className="text-xs text-slate-400">Enter basic branding and shop handle information</p>
+              </div>
+
+              <Row gutter={16}>
+                <Col xs={24} md={16}>
+                  <Form.Item
+                    name="organization_name"
+                    label={<span className="text-xs font-semibold text-slate-700">Organization Name</span>}
+                    rules={[{ required: true, message: 'Please enter organization name' }]}
+                  >
+                    <Input 
+                      placeholder="e.g. Acme Retail Store" 
+                      size="large" 
+                      className="rounded-xl" 
+                      onChange={handleOrgNameChange}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="shop_name"
+                    label={<span className="text-xs font-semibold text-slate-700">Store URL Slug</span>}
+                    tooltip="Custom path identifier. e.g. eshop.nfour.com/in/shop-name"
                     rules={[
-                        { required: true, message: 'Please select tax type' }
+                      { required: true, message: 'Please enter unique shop handle' },
+                      { validator: validateShopName }
                     ]}
+                  >
+                    <Input 
+                      addonBefore="eshop.nfour.com/in/" 
+                      placeholder="acme-store" 
+                      size="large" 
+                      className="rounded-xl" 
+                      onChange={(e) => {
+                        if (!e.target.value.trim()) {
+                          setIsSlugTouched(false);
+                        } else {
+                          setIsSlugTouched(true);
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} md={8}>
+                  <Form.Item 
+                    label={<span className="text-xs font-semibold text-slate-700">Brand Logo</span>}
+                  >
+                    <div 
+                      onClick={() => {
+                        if (!logoPreview) {
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center bg-slate-50/50 hover:bg-indigo-50/20 hover:border-indigo-300 transition-all flex flex-col items-center justify-center min-h-[140px] cursor-pointer group"
                     >
-                      <Select placeholder="Select Tax Type" onChange={(value)=> setState({...state,taxTypes:value})}>
-                        {taxTypes.map((type) => (
-                        <Option key={type.id} value={type.id}>
-                            {type.name}
+                      {logoPreview ? (
+                        <div className="relative group/logo">
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo preview" 
+                            className="w-20 h-20 object-contain rounded-xl shadow-xs bg-white p-1" 
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="absolute -top-2 -right-2 p-1.5 bg-rose-500 text-white rounded-full shadow-md hover:bg-rose-600 transition-colors"
+                            title="Remove logo"
+                          >
+                            <FiTrash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center w-full py-1 pointer-events-none">
+                          <div className="p-2.5 rounded-full bg-indigo-50 text-indigo-600 mb-2 group-hover:scale-110 transition-transform">
+                            <FiUploadCloud className="w-6 h-6" />
+                          </div>
+                          <span className="text-xs font-semibold text-indigo-600 group-hover:text-indigo-700">Upload Image</span>
+                          <span className="text-[10px] text-slate-400 mt-0.5">PNG, JPG up to 5MB</span>
+                        </div>
+                      )}
+                      <input 
+                        ref={fileInputRef}
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileChange} 
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+          )}
+
+          {/* STEP 1: DEDICATED BUSINESS TYPE & MODEL SELECTION */}
+          {currentStep === 1 && (
+            <div className="space-y-3 animate-in fade-in-50 duration-200">
+              <div className="border-b border-slate-100 pb-2 mb-3">
+                <h3 className="text-sm font-bold text-slate-800">Business Model & Operations</h3>
+                <p className="text-xs text-slate-400">Select how your organization produces, trades, or serves customers</p>
+              </div>
+
+              {/* Hidden Form Item for Validation */}
+              <Form.Item
+                name="org_type"
+                rules={[{ required: true, message: 'Please select your organization business model' }]}
+                className="hidden mb-0"
+              >
+                <input type="hidden" />
+              </Form.Item>
+
+              {/* Sleek Minimal 2x2 Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {orgTypes.map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = selectedOrgType === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => form.setFieldValue('org_type', item.id)}
+                      className={`group relative p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected 
+                          ? 'border-indigo-600 bg-indigo-50/40 shadow-xs ring-1 ring-indigo-500/20' 
+                          : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/50 hover:shadow-xs'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`p-2 rounded-xl ${item.color} border flex items-center justify-center shrink-0`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="font-bold text-slate-800 text-xs sm:text-sm">{item.title}</h4>
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-wider">
+                                {item.badge}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                              isSelected 
+                                ? 'border-indigo-600 bg-indigo-600' 
+                                : 'border-slate-300 bg-white group-hover:border-slate-400'
+                            }`}>
+                              {isSelected && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-500 leading-relaxed font-normal pl-0.5 mt-1">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: ADDRESS & LOCATION */}
+          {currentStep === 2 && (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="border-b border-slate-100 pb-2 mb-4">
+                <h3 className="text-sm font-bold text-slate-800">Physical Location & Address</h3>
+                <p className="text-xs text-slate-400">Specify your headquarters or primary fulfillment center</p>
+              </div>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="country"
+                    label={<span className="text-xs font-semibold text-slate-700">Country</span>}
+                    rules={[{ required: true, message: 'Please select country' }]}
+                  >
+                    <Select 
+                      placeholder="Select Country" 
+                      onChange={handleCountryChange} 
+                      size="large"
+                      className="rounded-xl"
+                    >
+                      {countries.map((country) => (
+                        <Option key={country.id} value={country.id}>
+                          {country.name}
                         </Option>
-                        ))}
+                      ))}
                     </Select>
+                  </Form.Item>
+                </Col>
 
-                    </Form.Item>
-                </Col>
                 <Col xs={24} sm={12}>
-                <Form.Item
-                label="Tax Number"
-                name="taxNumber"
-                >
-                <Input 
-                disabled={state.taxTypes === 'None' || state.taxTypes === '' ?true:false} placeholder="Tax Number" />
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                <Form.Item
-                label="Country"
-                name="country"
-                rules={[{ required: true, message: 'Please select your country' }]}
-                >
-                <Select placeholder="Select Country" value={state.country} onChange={handleCountryChange}>
-                    {countries.map((country) => (
-                    <Option key={country.id} value={country.id}>
-                        {country.name}
-                    </Option>
-                    ))}
-                </Select>
-                </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                <Form.Item
-                label="State"
-                name="state"
-                rules={[{ required: true, message: 'Please select your state' }]}
-                >
-                <Select placeholder="Select State">
-                {selectedstates.map((state) => (
-                  <Option key={state.id} value={state.id}>
-                    {state.name}
-                  </Option>
-                ))}
-              </Select>
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="Building No/Name"
-                    name="building"
+                  <Form.Item
+                    name="state"
+                    label={<span className="text-xs font-semibold text-slate-700">State / Province</span>}
+                    rules={[{ required: true, message: 'Please select state' }]}
+                  >
+                    <Select 
+                      placeholder="Select State" 
+                      disabled={!selectedCountry || selectedStates.length === 0}
+                      size="large"
+                      className="rounded-xl"
                     >
-                    <Input placeholder="Building" />
-                    </Form.Item>
+                      {selectedStates.map((st) => (
+                        <Option key={st.id} value={st.id}>
+                          {st.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
+              </Row>
+
+              <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="City"
+                  <Form.Item
                     name="city"
-                    >
-                    <Input placeholder="City" />
-                    </Form.Item>
+                    label={<span className="text-xs font-semibold text-slate-700">City / District</span>}
+                  >
+                    <Input placeholder="e.g. Mumbai, Bangalore" size="large" className="rounded-xl" />
+                  </Form.Item>
                 </Col>
-            </Row>
-            <Row gutter={16}>
+
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="Street"
-                    name="street"
-                    >
-                    <Input placeholder="Street / Land Mark" />
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="Pin Code"
+                  <Form.Item
                     name="pin"
+                    label={<span className="text-xs font-semibold text-slate-700">Postal / PIN Code</span>}
+                  >
+                    <Input placeholder="e.g. 560001" size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="building"
+                    label={<span className="text-xs font-semibold text-slate-700">Building / Suite No.</span>}
+                  >
+                    <Input placeholder="e.g. Suite 402, Matrix Tower" size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="street"
+                    label={<span className="text-xs font-semibold text-slate-700">Street / Area Landmark</span>}
+                  >
+                    <Input placeholder="e.g. MG Road, Near Metro" size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+          )}
+
+          {/* STEP 3: TAX & LEGAL */}
+          {currentStep === 3 && (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="border-b border-slate-100 pb-2 mb-4">
+                <h3 className="text-sm font-bold text-slate-800">Tax & Regulatory Information</h3>
+                <p className="text-xs text-slate-400">Configure compliant invoicing and business registration numbers</p>
+              </div>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="tax_type"
+                    label={<span className="text-xs font-semibold text-slate-700">Tax Registration Type</span>}
+                    rules={[{ required: true, message: 'Please select tax type' }]}
+                  >
+                    <Select 
+                      placeholder="Select Tax Type" 
+                      onChange={(val) => setSelectedTaxType(val)}
+                      size="large"
+                      className="rounded-xl"
                     >
-                    <Input placeholder="PIN Code" />
-                    </Form.Item>
+                      {taxTypes.map((type) => (
+                        <Option key={type.id} value={type.id}>
+                          {type.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
-            </Row>
-            <Row gutter={16}>
-            <Col xs={24} sm={12}>
-                    <Form.Item
-                      tooltip="Types of organization you can belong to"
-                      label="Type"
-                      name="org_type"
-                      rules={[
-                          { required: true, message: 'Please select organization type' }
-                      ]}
-                      >
-                        <Select placeholder="Select Organization Type" onChange={(value)=> setState({...state,orgTypes:value})}>
-                          {orgTypes.map((type) => (
-                          <Option key={type.id} value={type.id}>
-                              {type.name}
-                          </Option>
-                          ))}
-                      </Select>
 
-                    </Form.Item>
-                </Col>
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                      tooltip="The product categories can be quite extensive to cover a wide range of goods"
-                      label="Category"
-                      name="category"
-                      rules={[
-                          { required: true, message: 'Please select product category' }
-                      ]}
-                      >
-                        <Select placeholder="Select Product Category" onChange={(value)=> setState({...state,category:value})}>
-                          {categories.map((type) => (
-                          <Option key={type.id} value={type.id}>
-                              {type.name}
-                          </Option>
-                          ))}
-                      </Select>
-
-                    </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="Email"
-                    name="email"
+                  <Form.Item
+                    name="taxNumber"
+                    label={<span className="text-xs font-semibold text-slate-700">Tax / GSTIN Number</span>}
                     rules={[
-                        { required: true, message: 'Please enter your email' },
-                        { type: 'email', message: 'Please enter a valid email' },
+                      { 
+                        required: selectedTaxType !== 4 && selectedTaxType !== undefined, 
+                        message: 'Please enter tax number' 
+                      }
                     ]}
-                    >
-                    <Input />
-                    </Form.Item>
+                  >
+                    <Input 
+                      placeholder={selectedTaxType === 4 ? 'Not Applicable' : 'Enter Tax Number'} 
+                      disabled={selectedTaxType === 4}
+                      size="large"
+                      className="rounded-xl"
+                    />
+                  </Form.Item>
                 </Col>
+              </Row>
+
+              <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                    label="Phone Number"
-                    name="phoneNumber"
-                    rules={[{ required: true, message: 'Please enter your phone number' }]}
-                    >
-                    <Input addonBefore="+91" placeholder="Phone Number" />
-                    </Form.Item>
+                  <Form.Item
+                    name="crn_number"
+                    label={<span className="text-xs font-semibold text-slate-700">Company Registration (CRN / CIN)</span>}
+                  >
+                    <Input placeholder="e.g. U72200KA2024PTC123456" size="large" className="rounded-xl" />
+                  </Form.Item>
                 </Col>
-            </Row>
-            <Form.Item label="Logo" >
-              <Input  type='file' accept="image/*" onChange={handleFileChange}/>
-            </Form.Item>
 
-            <Form.Item>
-              <Button type="primary" htmlType="submit" block >
-                Register
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="website"
+                    label={<span className="text-xs font-semibold text-slate-700">Official Website</span>}
+                  >
+                    <Input placeholder="https://www.yourdomain.com" size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+          )}
+
+          {/* STEP 4: CONTACT & REVIEW */}
+          {currentStep === 4 && (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="border-b border-slate-100 pb-2 mb-4">
+                <h3 className="text-sm font-bold text-slate-800">Contact Details & Final Review</h3>
+                <p className="text-xs text-slate-400">Verify your details before creating your organization storefront</p>
+              </div>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="email"
+                    label={
+                      <span className="text-xs font-semibold text-slate-700">
+                        Official Contact Email <span className="text-slate-400 font-normal">(Optional)</span>
+                      </span>
+                    }
+                    rules={[
+                      { type: 'email', message: 'Please enter a valid email address' }
+                    ]}
+                  >
+                    <Input placeholder={user?.email || "store@yourdomain.com"} size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="phoneNumber"
+                    label={
+                      <span className="text-xs font-semibold text-slate-700">
+                        Support Phone / WhatsApp <span className="text-slate-400 font-normal">(Optional)</span>
+                      </span>
+                    }
+                  >
+                    <Input addonBefore="+91" placeholder="9876543210" size="large" className="rounded-xl" />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {/* Summary Card */}
+              <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 mt-2 space-y-2.5">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Registration Summary</div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Organization:</span>
+                    <span className="font-semibold text-slate-800">{currentValues.organization_name || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Handle / Slug:</span>
+                    <span className="font-semibold text-indigo-600 font-mono">/in/{currentValues.shop_name || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Business Model:</span>
+                    <span className="font-semibold text-slate-800">
+                      {orgTypes.find(o => o.id === currentValues.org_type)?.title || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Tax Type:</span>
+                    <span className="font-semibold text-slate-800">
+                      {taxTypes.find(t => t.id === currentValues.tax_type)?.name || 'None'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">City / Location:</span>
+                    <span className="font-semibold text-slate-800">{currentValues.city || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Email:</span>
+                    <span className="font-semibold text-slate-800">{currentValues.email || user?.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* BOTTOM STEP CONTROLS */}
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+            <div>
+              {currentStep > 0 && (
+                <Button 
+                  onClick={handlePrev}
+                  className="rounded-xl text-xs font-semibold flex items-center gap-1.5 h-10 px-4"
+                >
+                  <FiArrowLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <Button 
+                onClick={handleCancel}
+                className="rounded-xl text-xs font-semibold h-10 px-4"
+              >
+                Cancel
               </Button>
-            </Form.Item>
 
+              {currentStep < 4 ? (
+                <Button 
+                  type="primary" 
+                  onClick={handleNext}
+                  disabled={!isStepValid}
+                  className={`rounded-xl text-xs font-semibold flex items-center gap-1.5 h-10 px-5 transition-all ${
+                    isStepValid 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-xs' 
+                      : 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed'
+                  }`}
+                >
+                  <span>Next Step</span>
+                  <FiArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <Button 
+                  type="primary" 
+                  onClick={handleSubmit}
+                  loading={isSubmitting}
+                  disabled={!isStepValid}
+                  className={`rounded-xl text-xs font-bold flex items-center gap-1.5 h-10 px-6 transition-all ${
+                    isStepValid 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-md' 
+                      : 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed'
+                  }`}
+                >
+                  <FiCheck className="w-4 h-4" />
+                  <span>Register Organization</span>
+                </Button>
+              )}
+            </div>
+          </div>
 
         </Form>
-      </Modal>
-  )
+      </div>
+    </Modal>
+  );
 }
-
-export default RegisterOrg
