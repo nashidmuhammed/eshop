@@ -3,11 +3,25 @@ import { baseUrl } from './GlobalVariables';
 import toast from 'react-hot-toast';
 
 const axiosInstance = axios.create({
-  baseURL: baseUrl, // or your API base URL
+  baseURL: baseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Request interceptor to add the access token to headers
 axiosInstance.interceptors.request.use(
@@ -16,11 +30,12 @@ axiosInstance.interceptors.request.use(
     if (accessToken) {
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }
+    if (config.data instanceof FormData) {
+      config.headers['Content-Type'] = 'multipart/form-data';
+    }
     return config;
   },
   (error) => {
-    console.log("Errror98765==>", error);
-    
     return Promise.reject(error);
   }
 );
@@ -31,61 +46,76 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.log("error--123456==>",error);
-    
-    const originalRequest = error.config;
+    const originalRequest = error?.config;
 
-    console.log("error--1=>",error.response.status);
-    console.log("error--2=>",!originalRequest._retry);
-    
+    // Check if error response status is 401 and request has not been retried yet
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      if (isRefreshing) {
+        // If refreshing is already in progress, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            return axiosInstance(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
 
-    if (error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refresh');
+      const currentAccessToken = localStorage.getItem('access');
+
+      // If no refresh token is available, clear tokens & redirect to login
+      if (!refreshToken) {
+        isRefreshing = false;
+        toast.error("Session expired, please log in again");
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
 
       try {
-        // Attempt to refresh the token
-        const refreshToken = localStorage.getItem('refresh');
-
-        console.log("Enter==refreshToken==>",refreshToken);
-        
-
-        // If no refresh token is available, redirect to login
-        if (!refreshToken) {
-          toast.error("Session expired, please log in again");
-          window.location.href = '/login';
-          return Promise.reject(error);
-        }
-
-        console.log("ENTER HRER 57");
-        
-
+        // Attempt to refresh the token using custom backend endpoint requirements
         const response = await axios.post(`${baseUrl}/accounts/v1/authentication/token/refresh/`, {
           refresh: refreshToken,
+          last_access_token: currentAccessToken,
+          app_name: 'dotz_erp',
         });
-        console.log("enter==response==>",response);
-        
 
-        const { access } = response.data;
+        const { access, refresh: newRefreshToken } = response.data || {};
 
-        // Store new access token
+        if (!access) {
+          throw new Error('No access token returned from refresh endpoint');
+        }
+
+        // Store new tokens
         localStorage.setItem('access', access);
+        if (newRefreshToken) {
+          localStorage.setItem('refresh', newRefreshToken);
+        }
 
-        // Update the original request's authorization header
-        axiosInstance.defaults.headers['Authorization'] = `Bearer ${access}`;
+        // Update default header for future requests
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${access}`;
         originalRequest.headers['Authorization'] = `Bearer ${access}`;
 
-        // Retry the original request with the new access token
+        processQueue(null, access);
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-        // Handle refresh token error (e.g., redirect to login)
-        console.log("refreshError===>",refreshError);
-        
-        console.log('Refresh token expired, redirecting to login...');
+        processQueue(refreshError, null);
+        console.error('Refresh token failed:', refreshError);
         toast.error("Session expired, please log in again");
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
         window.location.href = '/login';
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

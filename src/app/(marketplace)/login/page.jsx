@@ -1,373 +1,626 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import './style.css';
 import { AccountsBaseUrl } from '@/utils/GlobalVariables';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import cookie from 'cookie';
 import useAuth from '@/hooks/useAuth';
-import { Input, Modal, Typography } from 'antd';
+import { Modal, Input, Typography } from 'antd';
+import {
+  FiMail,
+  FiLock,
+  FiUser,
+  FiKey,
+  FiEye,
+  FiEyeOff,
+  FiAlertCircle,
+  FiArrowRight,
+  FiCheckCircle,
+} from 'react-icons/fi';
+import { BiLoaderAlt } from 'react-icons/bi';
+
+const INITIAL_STATE = {
+  login_username: '',
+  password: '',
+  email: '',
+  username: '',
+  password1: '',
+  password2: '',
+  otp: '',
+};
+
+const INITIAL_ERRORS = {
+  login_username: null,
+  login_password: null,
+  email: null,
+  username: null,
+  password1: null,
+  password2: null,
+  otp: null,
+};
+
+const getPasswordStrength = (password) => {
+  if (!password) return { width: '0%', color: 'transparent', label: '' };
+
+  let score = 0;
+  if (password.length >= 6) {
+    const checks = [/[0-9]/, /[a-z]/, /[A-Z]/, /[^0-9a-zA-Z]/];
+    checks.forEach((regex) => {
+      if (regex.test(password)) score += 1;
+    });
+  } else if (password.length > 0) {
+    score = 0;
+  }
+
+  const levels = [
+    { width: '20%', color: '#e5484d', label: 'Too short' },
+    { width: '40%', color: '#DC6551', label: 'Weak' },
+    { width: '60%', color: '#F2B84F', label: 'Fair' },
+    { width: '80%', color: '#BDE952', label: 'Good' },
+    { width: '100%', color: '#3ba62f', label: 'Strong' },
+  ];
+
+  return levels[score] || levels[0];
+};
 
 const Login = () => {
   const { login } = useAuth();
-  const router = useRouter()
-  const [isLoggin, setIsLoggin] = useState(true)
-  const [isPassword, setIsPassword] = useState(false)
-  const [isVerify, setIsVerify] = useState(false)
-  const [isValidate, setIsValidate] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [state, setState] = useState({login_username:'', password:'', email:'',username:'',password1:'',password2:'', otp: ''})
-  const [errors, setErrors] = useState({
-    login_username: null,
-    login_password: null,
-    email:null,
-    usename:null,
-    password1:null,
-    password2:null,
-    otp:null,
-  })
+  const router = useRouter();
+
+  const [isLogin, setIsLogin] = useState(true);
+  const [isVerify, setIsVerify] = useState(false);
+  const [isValidateModalOpen, setIsValidateModalOpen] = useState(false);
+
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showPassword1, setShowPassword1] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
+
+  const [state, setState] = useState(INITIAL_STATE);
+  const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [loading, setLoading] = useState({
-    loging: false,
+    login: false,
     signup: false,
     verify: false,
     validate: false,
-  })
-  const handleChange = (e) => {
-    const {name, value} = e.target
-    console.log("name==>",name);
-    console.log("value==>",value);
-    setState((prev) => ({ ...prev, [name]: value }));
-    setErrors(null)
-    if(name === 'password1'){
-      passwordStrength()
-    }
-  }
+  });
 
-  const verifyEmail = async () => {
-    console.log("clicked--");
-    
-      const re = /\S+@\S+\.\S+/; // Basic email format regex
-      let test = re.test(state.email)
-      console.log("TESt: " + test);
-      
-      if (!test){
-        toast.error("Please enter valid email.");
-        
-      }
-      else{
-        setLoading((prev) => ({...prev,validate:true}))
-        try {
-          const response = await fetch(AccountsBaseUrl+'/v1/user/resend-email/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              // 'Authorization': 'Bearer your-auth-token',
-            },
-            body: JSON.stringify({email:state.email} ),
-          })
-          .then(response => response.json())
-          .then(data => {
-            console.log("data===>",data);
-            if (data.status_code === 1000) {
-                toast.success(data.message)
-                setIsValidate(false)
-                setIsLoggin(false)
-                setIsVerify(true)
-            }else if (data.status_code === 1001){
-              toast.error(data.message)
-            } else {
-                console.error('Failed call api');
-            }
-          })
-      } catch (error) {
-          console.error('Error api call:', error);
-      } 
-      setLoading((prev) => ({...prev,validate:false}))
-      }
-    
-    
+  const passwordStrength = useMemo(
+    () => getPasswordStrength(state.password1),
+    [state.password1]
+  );
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setState((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
-  const handleLogin = async () => {
-    console.log("state===>",state);
-    let isValid = true
-    if(state.login_username === '' || state.login_username === null){
-      setErrors((prev) => ({...prev, login_username:"Please enter valid username or email!"}))
-      isValid = false
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
+    let isValid = true;
+    const newErrors = { ...INITIAL_ERRORS };
+
+    if (!state.login_username?.trim()) {
+      newErrors.login_username = 'Please enter your username or email';
+      isValid = false;
     }
-    if(state.password === ''){
-      setErrors((prev) => ({...prev, login_password:"Please enter valid password!"}))
-      isValid = false
+    if (!state.password) {
+      newErrors.login_password = 'Please enter your password';
+      isValid = false;
     }
-    if (isValid){
-      setLoading((prev) => ({...prev,login:true}))
-      const payload = {
-        username: state.login_username,
-        password: state.password
+
+    if (!isValid) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, login: true }));
+    try {
+      await login(state.login_username.trim(), state.password);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Login failed. Please check credentials.');
+    } finally {
+      setLoading((prev) => ({ ...prev, login: false }));
+    }
+  };
+
+  const handleRegister = async (e) => {
+    if (e) e.preventDefault();
+    let isValid = true;
+    const newErrors = { ...INITIAL_ERRORS };
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!state.email?.trim() || !emailRegex.test(state.email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+      isValid = false;
+    }
+
+    if (!state.username?.trim()) {
+      newErrors.username = 'Please enter a valid username';
+      isValid = false;
+    }
+
+    if (!state.password1 || state.password1.length < 6) {
+      newErrors.password1 = 'Password must be at least 6 characters long';
+      isValid = false;
+    } else if (state.password1 !== state.password2) {
+      newErrors.password2 = 'Passwords do not match';
+      isValid = false;
+    }
+
+    if (!isValid) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, signup: true }));
+    try {
+      const response = await fetch(`${AccountsBaseUrl}/v1/user/signup/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: state.username.trim(),
+          email: state.email.trim(),
+          password1: state.password1,
+          password2: state.password2,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.status_code === 1000) {
+        toast.success(data.message || 'Registered successfully! Enter the OTP sent to your email.');
+        setIsVerify(true);
+      } else if (data.status_code === 1001) {
+        toast.error(data.message || 'Registration failed');
+      } else {
+        toast.error('Unexpected error during registration.');
       }
-      login(state.login_username, state.password);
-    //   const response = await fetch(AccountsBaseUrl+'/v1/user/login/', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json',
-    //         // 'Authorization': 'Bearer your-auth-token',
-    //     },
-    //     body: JSON.stringify(payload ),
-    // })
-    // .then(response => response.json())
-    // .then(data => {
-    //   console.log("data===>",data);
-    //   if (data.status_code === 1000) {
-    //       console.log('Login successfully!');
-    //       // ====== Login Success =================
-    //       toast.success(data.message)
-    //       if (isAdmin) {
-    //         router.push('/admin')
-    //       }else {
-    //         router.push('/')
-    //       }
-    //   }else if(data.status_code === 1001){
-    //     toast.error(data.message)
-    //   }
-    //   setLoading((prev) => ({...prev,login:false}))
-    
-    // })
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading((prev) => ({ ...prev, signup: false }));
     }
-  }
+  };
 
-  const passwordStrength = function () { 
-    const power = document.getElementById("power-point"); 
-    let point = 0;
-    let value = state.password1;
-    let widthPower =  
-        ["1%", "25%", "50%", "75%", "100%"]; 
-    let colorPower =  
-        ["#D73F40", "#DC6551", "#F2B84F", "#BDE952", "#3ba62f"]; 
-  
-    if (value.length >= 5) { 
-        let arrayTest =  
-            [/[0-9]/, /[a-z]/, /[A-Z]/, /[^0-9a-zA-Z]/]; 
-        arrayTest.forEach((item) => { 
-            if (item.test(value)) { 
-                point += 1; 
-            }
-        }); 
+  const handleVerify = async (e) => {
+    if (e) e.preventDefault();
+    if (!state.otp?.trim()) {
+      setErrors((prev) => ({ ...prev, otp: 'Please enter verification OTP' }));
+      return;
     }
-    power.style.width = widthPower[point]; 
-    power.style.backgroundColor = colorPower[point];
-};
 
-  const handleRegister = async () => {
-   let isValid = true
-   if(state.email === ''){
-    setErrors((prev) => ({...prev, email:"Please enter valid email!"}))
-    isValid = false
-  }
-  if(state.username === ''){
-    setErrors((prev) => ({...prev, username:"Please enter valid username!"}))
-    isValid = false
-  }
-   if (state.password1.length < 6){
-    setErrors((prev) => ({...prev, password1:"Password need min 6 letter length!"}))
-    isValid = false
-   }else if (state.password1 !== state.password2){
-    setErrors((prev) => ({...prev, password1:"Password mismatch!"}))
-    isValid = false
-   }
-
-   if(isValid){
-    const payload = {
-      'username':state.username,
-      'email':state.email,
-      'password1':state.password1,
-      'password2':state.password2,
-    }
-    setLoading((prev) => ({...prev,signup:true}))
+    setLoading((prev) => ({ ...prev, verify: true }));
     try {
-      const response = await fetch(AccountsBaseUrl+'/v1/user/signup/', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              // 'Authorization': 'Bearer your-auth-token',
-          },
-          body: JSON.stringify(payload ),
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log("data===>",data);
-        if (data.status_code === 1000) {
-            console.log('Registered successfully!');
-            toast.success(data.message)
-            // message.success(data.message)
-            setIsVerify(true)
-        }else if (data.status_code === 1001){
-          console.log("data.message==>",data.message);
-          let field_name = null
-          toast.error(data.message)
-          // if (!data.check_username){field_name = 'username'}
-          // else if (!data.check_email){field_name = 'email'}
-          // else if (!data.check_password){field_name = 'password1'}
-          // if (field_name){
-          //   form.setFields([{
-          //       name: field_name,
-          //       errors: [data.message],
-          //     }]);
-          // }else{
-          //   message.error(data.message)
-          // }
-        } else {
-            console.error('Failed to sync notes');
-        }
-        setLoading((prev) => ({...prev,signup:false}))
+      const response = await fetch(`${AccountsBaseUrl}/v1/user/verify-email/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: state.email.trim(),
+          otp: state.otp.trim(),
+        }),
+      });
+      const data = await response.json();
 
-
-      })
-  } catch (error) {
-      console.error('Error syncing notes:', error);
-  } 
-   }
-  }
-
-
-  const handleVerify = async () => {
-   let isValid = true
-   if(isValid){
-    const payload = {
-      'email':state.email,
-      'otp':state.otp,
+      if (data.status_code === 1000) {
+        toast.success(data.message || 'Email verified! You can now log in.');
+        setState(INITIAL_STATE);
+        setIsVerify(false);
+        setIsLogin(true);
+      } else if (data.status_code === 1001) {
+        toast.error(data.message || 'Invalid or expired OTP');
+      } else {
+        toast.error('Verification failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Verify error:', error);
+      toast.error('Network error during verification.');
+    } finally {
+      setLoading((prev) => ({ ...prev, verify: false }));
     }
-    setLoading((prev) => ({...prev,verify:true}))
+  };
 
+  const verifyEmail = async () => {
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!state.email?.trim() || !emailRegex.test(state.email.trim())) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, validate: true }));
     try {
-      const response = await fetch(AccountsBaseUrl+'/v1/user/verify-email/', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              // 'Authorization': 'Bearer your-auth-token',
-          },
-          body: JSON.stringify(payload ),
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log("data===>",data);
-        if (data.status_code === 1000) {
-          console.log('Verify successfully!');
-          setState({login_username:'', password:'', email:'',username:'',password1:'',password2:'', otp: ''})
-          toast.success(data.message)
-          // ====== Verificcation Success =================
-          setIsVerify(false)
-          setIsLoggin(true)
-        }else if (data.status_code === 1001){
-          console.log("data.message==>",data.message);
-          let field_name = null
-          toast.error(data.message)
-        } else {
-            console.error('Failed to sync notes');
-        }
-        setLoading((prev) => ({...prev,verify:false}))
-        
-      })
-  } catch (error) {
-      console.error('Error syncing notes:', error);
-  } 
-   }
-  }
+      const response = await fetch(`${AccountsBaseUrl}/v1/user/resend-email/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: state.email.trim() }),
+      });
+      const data = await response.json();
 
+      if (data.status_code === 1000) {
+        toast.success(data.message || 'Verification email sent!');
+        setIsValidateModalOpen(false);
+        setIsLogin(false);
+        setIsVerify(true);
+      } else if (data.status_code === 1001) {
+        toast.error(data.message || 'Failed to send verification email');
+      } else {
+        toast.error('Could not complete request.');
+      }
+    } catch (error) {
+      console.error('Resend email error:', error);
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading((prev) => ({ ...prev, validate: false }));
+    }
+  };
 
-
+  const switchMode = (toLogin) => {
+    setErrors(INITIAL_ERRORS);
+    setIsVerify(false);
+    setIsLogin(toLogin);
+  };
 
   return (
     <div className="main">
       <div className="signup-wrapper">
-        <h2>{isLoggin ? isAdmin ? 'Admin Login' : 'Login' : 'Sign Up'}</h2>
-        <p>{isLoggin ? 'Login to your account!' : 'Create your own account!'}</p>
-        <div className="signup-form">
-          {isLoggin ?
-          <>
-            <input name='login_username' onChange={handleChange} value={state.login_username} id="usename" className='' type="text" placeholder="Enter email / username" />
-            <span className='text-left pl-1 text-[#e5484d]'>{errors?.login_username}</span>
-            <input 
-              name='password'
-              onChange={handleChange}
-              id="password" 
-              type="password" 
-              placeholder="Password"
-              className='mt-3'
-            />
-            <span className='text-left pl-1 text-[#e5484d]'>{errors?.login_password}</span>
-            <span className='text-left cursor-pointer text-slate-400 mt-3 mb-3'>Did you forget your password?</span>
-            <button disabled={loading.loging} type="submit" onClick={handleLogin}>{loading.loging ? 'Please wait...' : 'Log In'}</button>
-            <span onClick={() => {setIsLoggin(false)}} className='cursor-pointer m-2'>Create Account</span>
-            <span onClick={() => {setIsValidate(true)}} className='cursor-pointer mb-2 text-slate-300'>Validate Account</span>
-            {/* {isAdmin ?
-            <span onClick={() => {setIsAdmin(false)}} className='cursor-pointer text-slate-300'>User Login</span>
-            :
-            <span onClick={() => {setIsAdmin(true)}} className='cursor-pointer text-slate-300'>Admin Login</span>
-            } */}
-          </>
-          :
-          <>
-            <input disabled={isVerify} name='email' value={state.email} onChange={handleChange} type="email" placeholder="Your email" />
-            <span className='text-left pl-1 text-[#e5484d]'>{errors?.email}</span>
-            <input disabled={isVerify} name='username' value={state.username} onChange={handleChange} type="text" className='mt-3' placeholder="Your username" />
-            <span className='text-left pl-1 text-[#e5484d]'>{errors?.usename}</span>
-            
-            {isVerify ?
-            <>
-              <input 
-                name="otp" 
-                type="text" 
-                placeholder="OTP"
-                className='mt-3'
-                value={state?.otp}
-                onChange={handleChange}
-              />
-              <span className='text-left pl-1 text-[#e5484d]'>{errors?.otp}</span>
-              <button disabled={loading.verify} type="submit" className='mt-3' onClick={handleVerify}>{loading.verify ? 'Please wait...' : 'Verify OTP'}</button>
-            </>
-            : 
-            <>
-              <input 
-                name="password1" 
-                type="text" 
-                placeholder="Password"
-                className='mt-3'
-                value={state?.password1}
-                onChange={handleChange}
-              />
-              <span className='text-left pl-1 text-[#e5484d]'>{errors?.password1}</span>
-              <input 
-                id="confirm-password" type="password" className='mt-3' name='password2' value={state?.password2} onChange={handleChange}
-                placeholder="Repeat Password" />
-                <div className="power-container mt-3"> 
-                    <div id="power-point"></div> 
+        <h2>{isLogin ? 'Welcome Back' : isVerify ? 'Verify Account' : 'Create Account'}</h2>
+        <p>
+          {isLogin
+            ? 'Sign in to access your dashboard'
+            : isVerify
+            ? `Enter the OTP sent to ${state.email || 'your email'}`
+            : 'Join us today and get started'}
+        </p>
+
+        {isLogin ? (
+          /* LOGIN FORM */
+          <form className="signup-form" onSubmit={handleLogin} noValidate>
+            <div className="input-field-wrapper">
+              <label htmlFor="login_username">Email or Username</label>
+              <div className="input-relative">
+                <FiUser className="input-left-icon" />
+                <input
+                  id="login_username"
+                  name="login_username"
+                  type="text"
+                  placeholder="Enter email or username"
+                  className={`custom-input ${errors.login_username ? 'has-error' : ''}`}
+                  value={state.login_username}
+                  onChange={handleChange}
+                  disabled={loading.login}
+                  autoComplete="username"
+                />
+              </div>
+              {errors.login_username && (
+                <span className="field-error">
+                  <FiAlertCircle /> {errors.login_username}
+                </span>
+              )}
+            </div>
+
+            <div className="input-field-wrapper">
+              <label htmlFor="password">Password</label>
+              <div className="input-relative">
+                <FiLock className="input-left-icon" />
+                <input
+                  id="password"
+                  name="password"
+                  type={showLoginPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  className={`custom-input ${errors.login_password ? 'has-error' : ''}`}
+                  value={state.password}
+                  onChange={handleChange}
+                  disabled={loading.login}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="input-right-btn"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showLoginPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+              {errors.login_password && (
+                <span className="field-error">
+                  <FiAlertCircle /> {errors.login_password}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="forgot-password-link"
+              onClick={() => { window.location.href = 'https://accounts.dotz.space'; }}
+            >
+              Forgot your password?
+            </button>
+
+            <button type="submit" className="submit-btn" disabled={loading.login}>
+              {loading.login ? (
+                <>
+                  <BiLoaderAlt className="spinner-icon" /> Logging in...
+                </>
+              ) : (
+                <>
+                  Log In <FiArrowRight />
+                </>
+              )}
+            </button>
+
+            <div className="form-footer-links">
+              <button
+                type="button"
+                className="toggle-mode-btn"
+                onClick={() => switchMode(false)}
+              >
+                Don't have an account? <span style={{ color: 'var(--primary)' }}>Sign Up</span>
+              </button>
+
+              <button
+                type="button"
+                className="sub-link-btn"
+                onClick={() => setIsValidateModalOpen(true)}
+              >
+                Need to verify an unverified account?
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* REGISTRATION & VERIFICATION FORM */
+          <form
+            className="signup-form"
+            onSubmit={isVerify ? handleVerify : handleRegister}
+            noValidate
+          >
+            <div className="input-field-wrapper">
+              <label htmlFor="email">Email Address</label>
+              <div className="input-relative">
+                <FiMail className="input-left-icon" />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  className={`custom-input ${errors.email ? 'has-error' : ''}`}
+                  value={state.email}
+                  onChange={handleChange}
+                  disabled={isVerify || loading.signup}
+                  autoComplete="email"
+                />
+              </div>
+              {errors.email && (
+                <span className="field-error">
+                  <FiAlertCircle /> {errors.email}
+                </span>
+              )}
+            </div>
+
+            {!isVerify && (
+              <div className="input-field-wrapper">
+                <label htmlFor="username">Username</label>
+                <div className="input-relative">
+                  <FiUser className="input-left-icon" />
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    placeholder="Choose a unique username"
+                    className={`custom-input ${errors.username ? 'has-error' : ''}`}
+                    value={state.username}
+                    onChange={handleChange}
+                    disabled={loading.signup}
+                    autoComplete="username"
+                  />
                 </div>
-                <button type="submit" className='mt-3' onClick={handleRegister} disabled={loading.signup}>{loading.signup ? 'Please wait...' : 'Sign Up'}</button>
-            </>
-            }
-              
-            <span onClick={() => {setIsLoggin(true)}} className='cursor-pointer mt-3' >Back to Login!</span>
-          </>
-          }
-        </div>
+                {errors.username && (
+                  <span className="field-error">
+                    <FiAlertCircle /> {errors.username}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {isVerify ? (
+              <div className="input-field-wrapper">
+                <label htmlFor="otp">Verification OTP Code</label>
+                <div className="input-relative">
+                  <FiKey className="input-left-icon" />
+                  <input
+                    id="otp"
+                    name="otp"
+                    type="text"
+                    placeholder="Enter 6-digit OTP code"
+                    className={`custom-input ${errors.otp ? 'has-error' : ''}`}
+                    value={state.otp}
+                    onChange={handleChange}
+                    disabled={loading.verify}
+                  />
+                </div>
+                {errors.otp && (
+                  <span className="field-error">
+                    <FiAlertCircle /> {errors.otp}
+                  </span>
+                )}
+
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={loading.verify}
+                >
+                  {loading.verify ? (
+                    <>
+                      <BiLoaderAlt className="spinner-icon" /> Verifying...
+                    </>
+                  ) : (
+                    <>
+                      Verify OTP <FiCheckCircle />
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="input-field-wrapper">
+                  <label htmlFor="password1">Password</label>
+                  <div className="input-relative">
+                    <FiLock className="input-left-icon" />
+                    <input
+                      id="password1"
+                      name="password1"
+                      type={showPassword1 ? 'text' : 'password'}
+                      placeholder="At least 6 characters"
+                      className={`custom-input ${errors.password1 ? 'has-error' : ''}`}
+                      value={state.password1}
+                      onChange={handleChange}
+                      disabled={loading.signup}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="input-right-btn"
+                      onClick={() => setShowPassword1(!showPassword1)}
+                      aria-label={showPassword1 ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      {showPassword1 ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                  {errors.password1 && (
+                    <span className="field-error">
+                      <FiAlertCircle /> {errors.password1}
+                    </span>
+                  )}
+
+                  {state.password1 && (
+                    <div className="strength-wrapper">
+                      <div className="strength-header">
+                        <span className="strength-title">Password strength:</span>
+                        <span
+                          className="strength-label"
+                          style={{ color: passwordStrength.color }}
+                        >
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="power-container">
+                        <div
+                          className="power-bar"
+                          style={{
+                            width: passwordStrength.width,
+                            backgroundColor: passwordStrength.color,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="input-field-wrapper">
+                  <label htmlFor="password2">Repeat Password</label>
+                  <div className="input-relative">
+                    <FiLock className="input-left-icon" />
+                    <input
+                      id="password2"
+                      name="password2"
+                      type={showPassword2 ? 'text' : 'password'}
+                      placeholder="Confirm your password"
+                      className={`custom-input ${errors.password2 ? 'has-error' : ''}`}
+                      value={state.password2}
+                      onChange={handleChange}
+                      disabled={loading.signup}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="input-right-btn"
+                      onClick={() => setShowPassword2(!showPassword2)}
+                      aria-label={showPassword2 ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      {showPassword2 ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                  {errors.password2 && (
+                    <span className="field-error">
+                      <FiAlertCircle /> {errors.password2}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={loading.signup}
+                >
+                  {loading.signup ? (
+                    <>
+                      <BiLoaderAlt className="spinner-icon" /> Creating Account...
+                    </>
+                  ) : (
+                    <>
+                      Sign Up <FiArrowRight />
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+
+            <div className="form-footer-links">
+              <button
+                type="button"
+                className="toggle-mode-btn"
+                onClick={() => switchMode(true)}
+              >
+                Already have an account? <span style={{ color: 'var(--primary)' }}>Log In</span>
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
+      {/* Validate / Resend OTP Modal */}
       <Modal
-        title="Verify your email"
+        title="Verify Account Email"
         centered
-        open={isValidate}
-        onOk={() => verifyEmail()}
-        onCancel={() => setIsValidate(false)}
-        okText="Verify"
-        okButtonProps={{loading: loading.validate}}
+        open={isValidateModalOpen}
+        onOk={verifyEmail}
+        onCancel={() => setIsValidateModalOpen(false)}
+        okText={loading.validate ? 'Sending...' : 'Send Verification OTP'}
+        confirmLoading={loading.validate}
+        className="custom-modal"
+        okButtonProps={{
+          style: {
+            backgroundColor: 'var(--primary)',
+            borderColor: 'var(--primary)',
+          },
+        }}
       >
-        <div>
-          <Typography >Email</Typography>
-          <Input type='email' name='email' onChange={handleChange} value={state.email} />
+        <div style={{ paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+          <Typography.Paragraph style={{ color: '#cbd5e1' }}>
+            Enter your registered email address to receive a new OTP verification link.
+          </Typography.Paragraph>
+          <div className="input-field-wrapper" style={{ marginTop: '0.75rem' }}>
+            <div className="input-relative">
+              <FiMail className="input-left-icon" />
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                className="custom-input"
+                value={state.email}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
         </div>
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

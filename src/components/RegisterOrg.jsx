@@ -280,22 +280,22 @@ export default function RegisterOrg({ isModalVisible, setIsModalVisible }) {
       setIsSubmitting(true);
 
       const formData = new FormData();
-      formData.append('name', formValues.organization_name || '');
-      formData.append('s_name', formValues.shop_name || '');
-      formData.append('shopname', formValues.shop_name || '');
-      formData.append('tax_type', formValues.tax_type || '');
-      formData.append('tax_number', formValues.taxNumber || '');
-      formData.append('edition', formValues.edition || 0);
-      formData.append('state', formValues.state || '');
-      formData.append('phone_number', formValues.phoneNumber || user?.phone_number || user?.phone || '');
-      formData.append('email', formValues.email || user?.email || '');
-      formData.append('website', formValues.website || '');
-      formData.append('crn_number', formValues.crn_number || '');
-      formData.append('building', formValues.building || '');
-      formData.append('city', formValues.city || '');
-      formData.append('street', formValues.street || '');
-      formData.append('pin', formValues.pin || '');
-      formData.append('org_type', formValues.org_type || '');
+      formData.append('name', formValues.organization_name?.trim() ?? '');
+      formData.append('s_name', formValues.shop_name?.trim() ?? '');
+      formData.append('shopname', formValues.shop_name?.trim() ?? '');
+      formData.append('tax_type', formValues.tax_type ?? '');
+      formData.append('tax_number', formValues.taxNumber?.trim() ?? '');
+      formData.append('edition', formValues.edition ?? 0);
+      formData.append('state', formValues.state ?? '');
+      formData.append('phone_number', (formValues.phoneNumber || user?.phone_number || user?.phone || '').toString().trim());
+      formData.append('email', (formValues.email || user?.email || '').toString().trim());
+      formData.append('website', formValues.website?.trim() ?? '');
+      formData.append('crn_number', formValues.crn_number?.trim() ?? '');
+      formData.append('building', formValues.building?.trim() ?? '');
+      formData.append('city', formValues.city?.trim() ?? '');
+      formData.append('street', formValues.street?.trim() ?? '');
+      formData.append('pin', formValues.pin?.trim() ?? '');
+      formData.append('org_type_code', formValues.org_type ?? '');
 
       if (logoFile) {
         formData.append('logo', logoFile);
@@ -303,32 +303,53 @@ export default function RegisterOrg({ isModalVisible, setIsModalVisible }) {
 
       const response = await axiosInstance.post(
         `${DotzBaseUrl}/v1/organization/organizations/`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        formData
       );
 
-      if (response.data.status === 1000) {
-        toast.success(response.data.message || 'Organization registered successfully!');
+      const isSuccess =
+        response.data?.status === 1000 ||
+        response.data?.status_code === 1000 ||
+        response.status === 201 ||
+        response.status === 200;
+
+      if (isSuccess) {
+        const createdOrg = response.data?.data;
+        if (createdOrg) {
+          localStorage.setItem('organizationDetails', JSON.stringify(createdOrg));
+        }
+
+        toast.success(response.data?.message || 'Organization registered successfully!');
         setIsModalVisible(false);
         form.resetFields();
         setLogoFile(null);
-        setLogoPreview(null);
+        if (logoPreview) {
+          URL.revokeObjectURL(logoPreview);
+          setLogoPreview(null);
+        }
         setCurrentStep(0);
         setIsSlugTouched(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
         router.push('/admin');
-      } else if (response.data.status === 1001) {
-        toast.error(response.data.error || response.data.message);
       } else {
-        toast.error(response.data.message || 'Registration failed');
+        const errorMsg = response.data?.error || response.data?.message || 'Registration failed';
+        toast.error(errorMsg);
       }
     } catch (error) {
-      console.error('Error registering organization:', error);
-      toast.error('Something went wrong! Please check the fields and try again.');
+      if (error?.errorFields && error.errorFields.length > 0) {
+        const firstErrorField = error.errorFields[0].name[0];
+        const stepIndex = stepFields.findIndex((fields) => fields.includes(firstErrorField));
+        if (stepIndex !== -1) {
+          setCurrentStep(stepIndex);
+        }
+        toast.error('Please complete all required fields correctly.');
+      } else {
+        console.error('Error registering organization:', error);
+        toast.error(
+          error?.response?.data?.message ||
+            error?.message ||
+            'Something went wrong! Please check the fields and try again.'
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }

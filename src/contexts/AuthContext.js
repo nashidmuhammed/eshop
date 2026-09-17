@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(response.data.user_id);
     
                 router.push('/admin');
-                console.log("----SUCCESSFUL----");
+                console.log("----AUTH SUCCESSFUL----");
                 
             }else if(response.data.status_code === 1001){
                 toast.error(response.data.message)

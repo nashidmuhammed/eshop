@@ -1,31 +1,30 @@
-import { Avatar, Badge, Button, Dropdown, Layout, Menu, Space, Tag, theme } from 'antd';
-import { FileOutlined, UserOutlined, PieChartOutlined, BellOutlined, MessageOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DownOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
+'use client';
+
+import { Avatar, Button, Dropdown, Layout, Tag } from 'antd';
+import { UserOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DownOutlined } from '@ant-design/icons';
+import Link from 'next/link';
 import useAuth from '@/hooks/useAuth';
 import { useUser } from '@/contexts/UserContext';
+
 const { Header } = Layout;
 
-const Headers = ({collapsed, setCollapsed, collapsedWidth}) => {
-  const {logout} = useAuth()
-  const { user } = useUser();
-  console.log("user00110==>",user);
-  // const router = useRouter();
-  // const logout = async () => {
-  //     // alert('logout');
-  //     setUser(null);
-  //     setAccessToken(null);
-  //     localStorage.removeItem('access');
-  //     localStorage.removeItem('refresh');
-  //     router.push('/login');
-  // };
-    const organizationDetails = JSON.parse(localStorage.getItem('organizationDetails'));
-    const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-    const items = [
+const Headers = ({ collapsed, setCollapsed, collapsedWidth }) => {
+  const { logout } = useAuth();
+  const { user, organization } = useUser();
+
+  const organizationName = organization?.name || user?.last_organization || 'Organization';
+  const edition = organization?.edition ?? user?.edition ?? 0;
+  const username = user?.username || 'User';
+  const userCode = user?.user || user?.id;
+
+  const items = [
     {
       label: (
-        <a href={`/admin/organization-settings?pk=${organizationDetails?.id}`}>Profile</a>
+        <Link href={`/admin/organization-settings${organization?.id ? `?pk=${organization.id}` : ''}`}>
+          Profile
+        </Link>
       ),
-      key: '0',
+      key: 'profile',
     },
     {
       label: 'Switch Organization',
@@ -39,89 +38,79 @@ const Headers = ({collapsed, setCollapsed, collapsedWidth}) => {
     },
     {
       label: (
-        <a href={`/admin/settings`}>
+        <Link href="/admin/settings">
           Settings
-        </a>
+        </Link>
       ),
-      key: '1',
+      key: 'settings',
     },
     {
       type: 'divider',
     },
     {
-      label: (<span className='text-red-600'>Logout</span>),
-      key: '3',
+      label: <span className="text-red-500 font-medium">Logout</span>,
+      key: 'logout',
       onClick: logout,
-      // disabled: false,
     },
   ];
-  console.log("collapsed==>",collapsed);
-  const organization_name = organizationDetails?.name;
-  const edition = organizationDetails ? organizationDetails.edition : 0
+
   return (
     <Header
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-            padding: 0,
-            // display: 'flex',
-            // background: colorBgContainer,
-            background:'#000'
-          }}
-        >
-            <div className='flex justify-between items-center'>
-              <div className='flex items-center'>
-                <Button
-                    type="text"
-                    icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                    onClick={() => setCollapsed(!collapsed)}
-                    style={{
-                    fontSize: '16px',
-                    width: 64,
-                    height: 64,
-                    color: '#fff',
-                    marginLeft: ((collapsedWidth === 0 &&  collapsed === false) && '200px'),
-                    }}
-                />
-                {/* <p className='text-white font-bold text-lg truncate  xs:w-35 md:w-50 lg:w-60'>{organization_name}</p> */}
-                <Tag  color={edition === 1 ? "blue" : "red"}>{edition === 1 ? 'Lite Edition' :'Trail Edition'}</Tag>
-                <p className='text-white font-bold text-lg truncate w-36 sm:w-44 md:w-52 lg:w-60 xl:w-72'>
-                    {organization_name}
-                </p>
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        padding: 0,
+        background: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
+      }}
+    >
+      <div className="flex justify-between items-center px-4 h-full">
+        <div className="flex items-center gap-x-3">
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              fontSize: '16px',
+              width: 48,
+              height: 48,
+              color: '#0f172a',
+              marginLeft: collapsedWidth === 0 && !collapsed ? '200px' : 0,
+            }}
+          />
+          <Tag color={edition === 1 ? 'blue' : 'gold'}>
+            {edition === 1 ? 'Lite Edition' : 'Trial Edition'}
+          </Tag>
+          <p className="text-slate-900 font-bold text-lg truncate w-36 sm:w-44 md:w-52 lg:w-60 xl:w-72 m-0">
+            {organizationName}
+          </p>
+        </div>
 
-              </div>
-            <div className='flex items-center'>
-              {/* <div className='mr-5'>
-                <Badge count={3}>
-                <BellOutlined className='text-white text-lg bg-slate-400 p-2 rounded-full cursor-pointer' />
-                </Badge>
-              </div>
-              <div className='mr-5'>
-                <Badge count={1}>
-                <MessageOutlined className='text-white text-lg bg-slate-400 p-2 rounded-full cursor-pointer' />
-                </Badge>
-              </div> */}
-            <Dropdown
-              menu={{
-                items,
-              }}
+        <div className="flex items-center">
+          <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
+            <button
+              type="button"
+              className="text-slate-900 cursor-pointer bg-transparent border-0 flex items-center gap-x-2.5 p-1 rounded-lg hover:bg-slate-100 transition-colors"
             >
-              <a onClick={(e) => e.preventDefault()}>
-                <div className='text-white p-0 mr-3 flex justify-between items-center gap-x-2'>
-                  <div className='leading-4 text-center'>
-                    <span>{userDetails?.username}</span>
-                    <span className='text-slate-400 text-sm block'>AD{userDetails?.user}</span>
-                  </div>
-                  <Avatar size={45}  icon={<UserOutlined />} style={{ backgroundColor: '#fde3cf',}} />
-                  <DownOutlined />
-                </div>
-              </a>
-            </Dropdown>
-            </div>
-            </div>
-        </Header>
-  )
-}
+              <div className="leading-tight text-right hidden sm:block">
+                <span className="block font-medium text-sm text-slate-900">{username}</span>
+                {userCode && (
+                  <span className="text-slate-500 text-xs block">AD{userCode}</span>
+                )}
+              </div>
+              <Avatar
+                size={40}
+                icon={<UserOutlined />}
+                style={{ backgroundColor: '#1BA098', color: '#fff' }}
+              />
+              <DownOutlined className="text-xs text-slate-400" />
+            </button>
+          </Dropdown>
+        </div>
+      </div>
+    </Header>
+  );
+};
 
-export default Headers
+export default Headers;

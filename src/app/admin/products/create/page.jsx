@@ -1,1457 +1,1349 @@
 'use client';
-import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
-import { Button, Checkbox, Col, Divider, Flex, Form, Input, InputNumber, Modal, Radio, Row, Select, Skeleton, Space, Switch, Tabs, Tooltip, Typography, Upload, message } from 'antd'
-import React, { useEffect, useState } from 'react'
-import './style.css'
-import toast from 'react-hot-toast';
+
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Button,
+  Card,
+  Col,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Skeleton,
+  Space,
+  Steps,
+  Switch,
+  Tag,
+  Typography,
+  Upload,
+  Badge,
+  Flex,
+  Tooltip,
+  Avatar,
+  Image,
+  Popover,
+} from 'antd';
+import {
+  PlusOutlined,
+  MinusCircleOutlined,
+  ShoppingOutlined,
+  AppstoreOutlined,
+  TagsOutlined,
+  UploadOutlined,
+  CheckCircleOutlined,
+  ArrowRightOutlined,
+  ArrowLeftOutlined,
+  DeleteOutlined,
+  PictureOutlined,
+  SaveOutlined,
+  CheckOutlined,
+  BgColorsOutlined,
+} from '@ant-design/icons';
 import ImgCrop from 'antd-img-crop';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { baseUrl, DotzBaseUrlV1 } from '@/utils/GlobalVariables';
+import toast from 'react-hot-toast';
+import { baseUrl, DotzBaseUrlV1, API_ENDPOINTS } from '@/utils/GlobalVariables';
 import axiosInstance from '@/utils/axiosInstance';
-// import useAxios from '../../utils/useAxios';
-// import { useSelector } from 'react-redux';
-// import { useNavigate, useSearchParams } from 'react-router-dom';
-// import { dotzURL } from '../../utils/apiConfig';
-const { Title, Text } = Typography;
+import { useUser } from '@/contexts/UserContext';
 
+const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
+
+const COLOR_NAME_MAP = {
+  red: '#EF4444',
+  blue: '#3B82F6',
+  green: '#22C55E',
+  yellow: '#EAB308',
+  black: '#000000',
+  white: '#FFFFFF',
+  purple: '#A855F7',
+  pink: '#EC4899',
+  orange: '#F97316',
+  gray: '#6B7280',
+  grey: '#6B7280',
+  navy: '#1E3A8A',
+  teal: '#14B8A6',
+  cyan: '#06B6D4',
+  brown: '#78350F',
+  gold: '#D97706',
+  silver: '#C0C0C0',
+  maroon: '#800000',
+  olive: '#808000',
+  lime: '#84CC16',
+  indigo: '#6366F1',
+  violet: '#8B5CF6',
+  beige: '#F5F5DC',
+};
+
+const detectColorHex = (valName) => {
+  if (!valName) return '#1890ff';
+  const lower = valName.trim().toLowerCase();
+  return COLOR_NAME_MAP[lower] || '#1890ff';
+};
 
 const CreateProduct = () => {
-    // const api = useAxios()
-    // const navigate = useNavigate()
-    // const organizationDetails = useSelector(state => state.organization_details);
-    const organizationDetails = JSON.parse(localStorage.getItem('organizationDetails'));
-    const [loader, setLoader] = useState(true)
-    const router = useRouter()
-    // const [searchParams, setSearchParams] = useSearchParams();
-    // let { id } = useParams();
-    // console.log("iddddddd===>",searchParams.get('id'));
-    // const productId = searchParams.get('id')
-    const searchParams = useSearchParams();
-    
-    const productId = searchParams.get('id');
-    const [form] = Form.useForm();
-    const [categoryForm] = Form.useForm();
-    const [brandForm] = Form.useForm();
-    const [unitForm] = Form.useForm();
-    const [taxForm] = Form.useForm();
-    
-    const [state, setState] = useState([{
-        isVariant: false,
-        isSubVariant: false,
-        isEdit: false,
-        isPurchasePriceSpecific: false,
-        isSalesPriceSpecific: false,
-    }]);
-    const [openCategory, setOpenCategory] = useState(false);
-    const [openBrand, setOpenBrand] = useState(false);
-    const [openUnit, setOpenUnit] = useState(false);
-    const [openTax, setOpenTax] = useState(false);
-    const [nav, setnav] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const productId = searchParams.get('id');
 
-    const [categoryModalOpen, setCategoryModalOpen] = useState(false)
-    const [brandModalOpen, setBrandModalOpen] = useState(false)
-    const [unitModalOpen, setUnitModalOpen] = useState(false)
-    const [taxModalOpen, setTaxModalOpen] = useState(false)
+  const { organization } = useUser();
+  const orgId = organization?.id || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('organizationDetails') || '{}')?.id : null);
 
-    const [product_category, setProduct_category] = useState([]);
-    const [brand, setBrand] = useState([]);
-    const [unit, setUnit] = useState([]);
-    const [tax, setTax] = useState([]);
-    const [stocks, setStocks] = useState([]);
-    // const stocks = [
-    //     {
-    //         variant: 'Red',
-    //         subVariant: 'XS',
-    //         stock: 0,
-    //     },
-    //     {
-    //         variant: 'Blue',
-    //         subVariant: 'S',
-    //         stock: 0,
-    //     },
-    // ]
-    const onTabChange = (key) => {
-        console.log(key);
-        if(key === '4'){
-            const variant_names = form.getFieldValue('variant_names');
-            const sub_variant_names = form.getFieldValue('sub_variant_names');
+  const [form] = Form.useForm();
+  const [categoryForm] = Form.useForm();
+  const [brandForm] = Form.useForm();
 
-            const result = [];
-            console.log("variant_names: ", variant_names);
-            console.log("sub_variant_names: ", sub_variant_names);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loader, setLoader] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-            variant_names.forEach(variant => {
-            sub_variant_names.forEach(subVariant => {
-                result.push({ variant: variant, subVariant: subVariant, stock: 0 });
-            });
-            });
+  // Master Data
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [taxes, setTaxes] = useState([]);
+  const [baseFileList, setBaseFileList] = useState([]);
 
-            console.log("result: ", result);
-            setStocks(result)
-            if(variant_names?.length === 1 && variant_names[0] === '' || sub_variant_names?.length === 1 && sub_variant_names[0] === ''){
-                toast.error('Please select at least one variant and one sub variant!');
-            }
-        }
-      };
+  // Modals for Master Data Creation
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [brandModalOpen, setBrandModalOpen] = useState(false);
 
-      const normFile = (e) => {
-        console.log('Upload event:', e);
-        if (Array.isArray(e)) {
-          return e;
-        }
-        return e?.fileList;
-      };
-      const [fileList, setFileList] = useState([]);
-      const dummyRequest = ({ file, onSuccess }) => {
-        setTimeout(() => {
-          onSuccess("ok");
-        }, 0);
-      };
-      const onImgChange = ({ fileList: newFileList }) => {
-        console.log("newFileList==>",newFileList);
-        setFileList(newFileList);
-      };
-      const onPreview = async (file) => {
-        let src = file.url;
-        if (!src) {
-        //   src = await new Promise((resolve) => {
-        //     const reader = new FileReader();
-        //     reader.readAsDataURL(file.originFileObj);
-        //     reader.onload = () => resolve(reader.result);
-        //   });
-        console.log("!SRC");
-        }
-        const image = new Image();
-        image.src = src;
-        const imgWindow = window.open(src);
-        imgWindow?.document.write(image.outerHTML);
-      };
+  // Flow State
+  const [createdProductId, setCreatedProductId] = useState(productId || null);
+  const [hasVariants, setHasVariants] = useState(true);
 
-    const [initialValues, setInitialValues] = useState(
-        {
-            // "product_code":"",
-            "is_active":true,
-            "hsn_code": '',
-            "is_sales": true,
-            "available":["Sales","Purchase"],
-            "type":["FinishedProduct"],
-            "purchase_price_is_included":false,
-            "sale_price_is_included":false,
-            "variant_names": [''],
-            "sub_variant_names": [''],
-            "image_specific": 'non'
-            // "tax":tax[0].id,
-        }
-    )
+  // Step 2: Attribute Library & Selected Product Attributes
+  // Library: all organization attributes fetched from API
+  const [libraryAttributes, setLibraryAttributes] = useState([]);
+  // Selected for this product: [{ attribute_id, name, display_type, selected_values: [{ id, value, color_code }] }]
+  const [selectedAttributes, setSelectedAttributes] = useState([
+    { attribute_id: null, name: 'Color', display_type: 'color', selected_values: [] }
+  ]);
 
-    const addCategory = () => {
-        setOpenCategory(false)
-        setCategoryModalOpen(true)
-    }
-    const addBrand = () => {
-        setOpenBrand(false)
-        setBrandModalOpen(true)
-    }
-    const addUnit = () => {
-        setOpenUnit(false)
-        setUnitModalOpen(true)
-    }
-    const addTax = () => {
-        setOpenTax(false)
-        setTaxModalOpen(true)
-    }
+  // Step 3 & 4: Variants List
+  // [{ id: '...', sku: '...', variant_title: '...', sales_price: 499, mrp: 799, purchase_price: 250, is_default: true, attribute_value_ids: [], images: [] }]
+  const [variantsList, setVariantsList] = useState([]);
+  const [activeVariantForUpload, setActiveVariantForUpload] = useState(null);
 
-    const createCategory = async (values) => {
-        values.organization = organizationDetails.id
-        console.log("values===>",values);
-        const response = await axiosInstance.post(DotzBaseUrlV1+'/product/categories/',values)
-        if (response.data.status === 1000){
-            toast.success(response.data.message)
-            setCategoryModalOpen(false)
-            // setBrand({...initialValues, id:response.data.data, name:values.name})
-            const newCategory = { id: response.data.data, name: values.category_name }
-            setProduct_category((prevCategory) => [...prevCategory, newCategory])
-            form.setFieldsValue({ product_category: newCategory.id })
-            categoryForm.resetFields()
-        }else if (response.data.status === 1001){
-            toast.error(response.data.message)
-        }
-    }
-    const createBrand = async (values) => {
-        values.organization = organizationDetails.id
-        const response = await axiosInstance.post(DotzBaseUrlV1+'/product/brands/',values)
-        if (response.data.status === 1000){
-            toast.success(response.data.message)
-            setBrandModalOpen(false)
-            // setBrand({...initialValues, id:response.data.data, name:values.name})
-            const newBrand = { id: response.data.data, name: values.brand_name }
-            setBrand((prevBrand) => [...prevBrand, newBrand])
-            form.setFieldsValue({ brand: newBrand.id })
-            brandForm.resetFields()
-        }else if (response.data.status === 1001){
-            toast.warning(response.data.message)
-        }
-    }
-    const createUnit = async (values) => {
-        values.organization = organizationDetails.id
-        const response = await axiosInstance.post(DotzBaseUrlV1+'/product/units/',values)
-        if (response.data.status === 1000){
-            toast.success(response.data.message)
-            setUnitModalOpen(false)
-            // setUnit({...initialValues, id:response.data.data, name:values.name})
-            const newUnit = { id: response.data.data, name: values.unit_name }
-            setUnit((prevUnit) => [...prevUnit, newUnit])
-            form.setFieldsValue({ unit: newUnit.id })
-            unitForm.resetFields()
-        }else if (response.data.status === 1001){
-            toast.error(response.data.message)
-        }
-    }
-    const createTax = async (values) => {
-        values.organization = organizationDetails.id
-        const response = await axiosInstance.post(DotzBaseUrlV1+'/product/taxes/',values)
-        if (response.data.status === 1000){
-            toast.success(response.data.message)
-            setTaxModalOpen(false)
-            // setTax({...initialValues, id:response.data.data, name:values.name})
-            const newTax = { id: response.data.data, name: values.tax_name }
-            setTax((prevTax) => [...prevTax, newTax])
-            form.setFieldsValue({ tax: newTax.id })
-            taxForm.resetFields()
-        }else if (response.data.status === 1001){
-            toast.error(response.data.message)
-        }
-    }
-  
- 
-    const onFinish = async (values) => {
-        console.log("values=====>: " + values);
-        onSubmit(values);
-        
-    }
+  // 1. Initial Data Fetching
+  const fetchInitial = useCallback(async () => {
+    if (!orgId) return;
+    setLoader(true);
+    try {
+      const [res0, res1, res2, res3, res4, res5, resAttrs] = await Promise.all([
+        axiosInstance.get(API_ENDPOINTS.settings(orgId, 'PRD')),
+        axiosInstance.get(API_ENDPOINTS.generateCode(orgId, 'PRD')),
+        axiosInstance.get(API_ENDPOINTS.categories(orgId)),
+        axiosInstance.get(API_ENDPOINTS.brands(orgId)),
+        axiosInstance.get(API_ENDPOINTS.units(orgId)),
+        axiosInstance.get(API_ENDPOINTS.taxes(orgId)),
+        axiosInstance.post(API_ENDPOINTS.attributesList(), { organization_id: orgId }).catch(() => ({ data: { data: [] } })),
+      ]);
 
-    const onFinishFailed = (errorInfo) => {
-        console.log('Failed:', errorInfo);
-    
-        // Extract and alert the first error message
-        if (errorInfo && errorInfo.errorFields.length > 0) {
-          const firstError = errorInfo.errorFields[0].errors[0];
-          toast.error(firstError); // Show an alert with the first error message
-        }
-      };
-
-      
-
-    const onSubmit = async (values) => {
-        let isValid = true;
-        console.log("values=====>: " + values);
-        console.log("variant_name=====>: " + values.variant_name);
-        
-        if (state.isVariant){
-            if (values.variant_name === '' || values.variant_name === undefined){
-                toast.error("Please enter a variant name")
-                isValid = false
-            }else if(values.variant_names === '' || values.variant_names === undefined){
-                toast.error("Please enter atleast 1 varinat")
-                isValid = false
-            }
-        }
-
-        if (isValid) {
-            let shouldNavigate = nav
-            
-            const formData = new FormData();
-            // if (fileList[0]?.uid === '1'){
-            //     formData.append('image','1')
-            // }else{
-            //     formData.append('image', fileList[0]?.originFileObj)
-            // }
-            fileList.forEach((file) => {
-                if (file.name === 'product_image'){
-                    formData.append('image', file.uid);
-                }else{
-                    formData.append('image', file?.originFileObj);
+      if (res2.data?.status_code === 1000) setCategories(res2.data.data || []);
+      if (res3.data?.status_code === 1000) setBrands(res3.data.data || []);
+      if (res4.data?.status_code === 1000) setUnits(res4.data.data || []);
+      if (res5.data?.status_code === 1000) setTaxes(res5.data.data || []);
+      if (resAttrs.data?.status === 1000 || resAttrs.data?.data) {
+        const loadedAttrs = resAttrs.data?.data || [];
+        setLibraryAttributes(loadedAttrs);
+        if (loadedAttrs.length > 0) {
+          setSelectedAttributes((prev) =>
+            prev.map((row) => {
+              if (!row.attribute_id) {
+                const matched =
+                  loadedAttrs.find(
+                    (la) => la.name?.toLowerCase() === (row.name || '').toLowerCase()
+                  ) || loadedAttrs[0];
+                if (matched) {
+                  return {
+                    attribute_id: matched.id,
+                    name: matched.name,
+                    display_type: matched.display_type || 'button',
+                    selected_values: row.selected_values || [],
+                  };
                 }
-              });
-        
-            formData.append('is_active', values.is_active);
-            formData.append('name', values.name);
-            formData.append('product_code', values.product_code);
-            formData.append('product_category', values.product_category);
-            formData.append('brand', values.brand);
-            formData.append('hsn_code', values.hsn_code);
-            formData.append('bar_code', values.bar_code);
-            formData.append('unit', values.unit);
-            formData.append('tax', values.tax);
-            formData.append('purchase_price', values.purchase_price ?? 0);
-            formData.append('purchase_price_is_included', values.purchase_price_is_included ?? false);
-            formData.append('sale_price', values.sale_price ?? 0);
-            formData.append('sale_price_is_included', values.sale_price_is_included ?? false);
-            formData.append('original_price', values.original_price ?? 0);
-            formData.append('mrp', values.mrp ?? 0);
-            formData.append('display_name', values.display_name ?? '');
-            formData.append('description', values.description ?? null);
-            formData.append('image_specific', values.image_specific);
-    
-            formData.append('available', values.available);
-            formData.append('product_type', values.type);  
-            formData.append('organization', organizationDetails.id);
-
-            if (state.isVariant){
-                formData.append('variant_name', values.variant_name);
-                formData.append('variant_names', values.variant_names)
-            }
-    
-    
-            // formData.append('image', values.image[0].originFileObj);
-            // console.log("formData===>",formData);
-              if (productId){
-                formData.append('pk', productId);
               }
-            // if (productId){
-            //     formData.append('pk', productId);
-            //     const response = await api.put('/api/v1/product/products/', formData, {
-            //         headers: { 'Content-Type': 'multipart/form-data'}
-            //     });
-            // }else {
-            //     const response = await api.post('/api/v1/product/products/', formData, {
-            //         headers: { 'Content-Type': 'multipart/form-data'}
-            //     });
-            // }
-            const response = productId ?
-                await axiosInstance.put(DotzBaseUrlV1+'/product/products/', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data'}
-                }) :
-                await axiosInstance.post(DotzBaseUrlV1+'/product/products/', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data'}
-                });
-            // console.log("response===:",response);
-            if (response.data.status === 1000){
-                toast.success(response.data.message)
-                
-                if (shouldNavigate){
-                    router.push('/admin/products')
-                }else{
-                form.resetFields()
-                form.setFieldsValue({ product_code: undefined });
-                setLoader(true)
-                fetchInitial()
-                }
-    
-            }else if (response.data.status === 1001){
-                toast.error(response.data.message)
-            }
-            else{
-                // message.error(response.data.message)
-                toast.error(response.data.message);
-            }
-
+              return row;
+            })
+          );
         }
+      }
+
+      if (productId) {
+        setCreatedProductId(productId);
+        const resProd = await axiosInstance.post(API_ENDPOINTS.productDetails(), {
+          organization_id: orgId,
+          product_id: productId,
+        });
+        const compositeData = resProd.data?.data || resProd.data || {};
+        const prod = compositeData.product;
+        if (prod) {
+          form.setFieldsValue({
+            name: prod.name,
+            product_code: prod.product_code,
+            product_category: prod.product_category,
+            brand: prod.brand,
+            unit: prod.unit,
+            tax: prod.tax,
+            hsn_code: prod.hsn_code,
+            bar_code: prod.bar_code,
+            purchase_price: prod.price_list?.purchase_price ?? prod.purchase_price,
+            sale_price: prod.price_list?.sales_price ?? prod.sales_price,
+            mrp: prod.price_list?.mrp ?? prod.mrp,
+            original_price: prod.price_list?.original_price ?? prod.original_price,
+            description: prod.description,
+            is_active: prod.is_active !== false,
+          });
+          if (prod.images) {
+            setBaseFileList(
+              prod.images.map((img) => ({
+                uid: img.id,
+                name: 'product_image',
+                status: 'done',
+                url: img.url ? (img.url.startsWith('http') ? img.url : baseUrl + img.url) : '',
+              }))
+            );
+          }
+        }
+      } else if (res1.data?.status_code === 1000) {
+        const generatedCode = res1.data.data;
+        form.setFieldsValue({
+          product_code: generatedCode,
+          is_active: true,
+          product_category: res2.data?.data?.[0]?.id,
+          brand: res3.data?.data?.[0]?.id,
+          unit: res4.data?.data?.[0]?.id,
+          tax: res5.data?.data?.[0]?.id,
+        });
+      }
+    } catch (err) {
+      console.error('Error loading initial creation data:', err);
+      toast.error('Failed to load master metadata');
+    } finally {
+      setLoader(false);
+    }
+  }, [orgId, productId, form]);
+
+  useEffect(() => {
+    fetchInitial();
+  }, [fetchInitial]);
+
+  // Master Modals Handlers
+  const handleCreateCategory = async (values) => {
+    try {
+      const res = await axiosInstance.post(API_ENDPOINTS.categories(orgId), { ...values, organization: orgId });
+      if (res.data?.status_code === 1000) {
+        toast.success('Category created!');
+        setCategoryModalOpen(false);
+        const newCat = { id: res.data.data, name: values.category_name };
+        setCategories((prev) => [...prev, newCat]);
+        form.setFieldsValue({ product_category: newCat.id });
+        categoryForm.resetFields();
+      } else {
+        toast.error(res.data?.message || 'Failed to create category');
+      }
+    } catch (err) {
+      toast.error('Failed to create category');
+    }
+  };
+
+  const handleCreateBrand = async (values) => {
+    try {
+      const res = await axiosInstance.post(API_ENDPOINTS.brands(orgId), { ...values, organization: orgId });
+      if (res.data?.status_code === 1000) {
+        toast.success('Brand created!');
+        setBrandModalOpen(false);
+        const newBrand = { id: res.data.data, name: values.brand_name };
+        setBrands((prev) => [...prev, newBrand]);
+        form.setFieldsValue({ brand: newBrand.id });
+        brandForm.resetFields();
+      } else {
+        toast.error(res.data?.message || 'Failed to create brand');
+      }
+    } catch (err) {
+      toast.error('Failed to create brand');
+    }
+  };
+
+  // ----------------------------------------------------
+  // STEP 1: Save Base Product
+  // ----------------------------------------------------
+  const handleSaveBaseProduct = async () => {
+    try {
+      const values = await form.validateFields();
+      setIsSubmitting(true);
+
+      const formData = new FormData();
+      formData.append('name', values.name?.trim());
+      formData.append('product_code', values.product_code?.trim());
+      formData.append('product_category', values.product_category || '');
+      formData.append('brand', values.brand || '');
+      formData.append('hsn_code', values.hsn_code || '');
+      formData.append('bar_code', values.bar_code || '');
+      formData.append('unit', values.unit || '');
+      formData.append('tax', values.tax || '');
+      formData.append('purchase_price', values.purchase_price ?? 0);
+      formData.append('sale_price', values.sale_price ?? 0);
+      formData.append('mrp', values.mrp ?? 0);
+      formData.append('original_price', values.original_price ?? 0);
+      formData.append('description', values.description || '');
+      formData.append('is_active', values.is_active !== false);
+      formData.append('organization', orgId);
+
+      baseFileList.forEach((file) => {
+        if (file.originFileObj) {
+          formData.append('image', file.originFileObj);
+        }
+      });
+
+      let res;
+      if (createdProductId) {
+        formData.append('pk', createdProductId);
+        res = await axiosInstance.put(`${DotzBaseUrlV1}/product/products/`, formData);
+      } else {
+        res = await axiosInstance.post(`${DotzBaseUrlV1}/product/products/`, formData);
+      }
+
+      if (res.data?.status_code === 1000 || res.status === 200 || res.status === 201) {
+        const prodData = res.data?.data;
+        const prodId = (typeof prodData === 'object' && prodData?.id) ? prodData.id : (prodData || createdProductId);
+        setCreatedProductId(prodId);
+        toast.success(createdProductId ? 'Base product updated!' : 'Base product created successfully!');
+        if (hasVariants) {
+          setCurrentStep(1);
+        } else {
+          router.push('/admin/products');
+        }
+      } else {
+        toast.error(res.data?.message || 'Failed to save base product');
+      }
+    } catch (err) {
+      console.error('Base product submit error:', err);
+      toast.error('Please fill all required base product details.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ----------------------------------------------------
+  // STEP 2: "Select from Library or Create Inline" Logic
+  // ----------------------------------------------------
+  const handleSelectOrCreateAttribute = async (index, nameOrId) => {
+    if (!nameOrId) {
+      setSelectedAttributes((prev) =>
+        prev.map((item, i) => (i === index ? { attribute_id: null, name: '', display_type: 'button', selected_values: [] } : item))
+      );
+      return;
     }
 
+    let attr = libraryAttributes.find(
+      (a) => a.id === nameOrId || a.name?.toLowerCase() === nameOrId.trim().toLowerCase()
+    );
 
-    const resetForm = () => {
-        if (productId){
-            // window.location.reload()
-            router.push('/create-product')
+    if (!attr) {
+      // Attribute does not exist in library -> Create it inline in backend
+      try {
+        const isColor = nameOrId.toLowerCase().includes('color') || nameOrId.toLowerCase().includes('colour');
+        const res = await axiosInstance.post(API_ENDPOINTS.attributeCreate(), {
+          organization_id: orgId,
+          name: nameOrId.trim(),
+          display_type: isColor ? 'color' : 'button',
+        });
+        attr = res.data?.data || res.data;
+        if (attr && attr.id) {
+          attr.values = attr.values || [];
+          setLibraryAttributes((prev) => [...prev, attr]);
+          toast.success(`Created attribute "${attr.name}" in organization library`);
+        } else {
+          toast.error('Failed to create attribute');
+          return;
         }
-        // else{
-            form.resetFields()
-            form.setFieldsValue({ product_code: undefined });
-            setLoader(true)
-            fetchInitial()
-        // }
-    };
+      } catch (err) {
+        console.error('Error creating attribute inline:', err);
+        toast.error('Failed to create new attribute');
+        return;
+      }
+    }
 
-    const fetchInitial = async () => {
-        console.log("====INITIAL===>");
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              attribute_id: attr.id,
+              name: attr.name,
+              display_type: attr.display_type || 'button',
+              selected_values: [],
+            }
+          : item
+      )
+    );
+  };
+
+  const [customColorName, setCustomColorName] = useState({});
+  const [customColorHex, setCustomColorHex] = useState({});
+
+  const handleSelectOrCreateValues = async (index, rawValues) => {
+    const row = selectedAttributes[index];
+    const libraryAttr = libraryAttributes.find(
+      (a) => (row.attribute_id && a.id === row.attribute_id) || (row.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row.attribute_id || libraryAttr?.id;
+    if (!attrId) return;
+
+    const existingLibraryValues = libraryAttr?.values || [];
+    const updatedSelected = [];
+
+    for (const valName of rawValues) {
+      let match = existingLibraryValues.find(
+        (v) => v.id === valName || v.value?.toLowerCase() === valName.trim().toLowerCase()
+      );
+
+      if (!match) {
+        // Value does not exist -> Create inline in backend with auto-detected hex code if color type
+        const isColorType = (row.display_type || libraryAttr?.display_type) === 'color';
+        const initialHex = isColorType ? detectColorHex(valName) : null;
         try {
-            const response0 = await axiosInstance.get(`${DotzBaseUrlV1}/main/settings/${organizationDetails.id}/PRD`)
-            const response1 = await axiosInstance.get(`${DotzBaseUrlV1}/main/generate-code/${organizationDetails.id}/PRD`)
-            const response2 = await axiosInstance.get(`${DotzBaseUrlV1}/product/categories/${organizationDetails.id}`)
-            const response3 = await axiosInstance.get(`${DotzBaseUrlV1}/product/brands/${organizationDetails.id}`)
-            const response4 = await axiosInstance.get(`${DotzBaseUrlV1}/product/units/${organizationDetails.id}`)
-            const response5 = await axiosInstance.get(`${DotzBaseUrlV1}/product/taxes/${organizationDetails.id}`)
-            if (response0.data.status === 1000 && response1.data.status === 1000 && response2.data.status === 1000 && response3.data.status === 1000 && response4.data.status === 1000 && response5.data.status === 1000){
-                console.log("response0.data.data===>",response0.data.data);
-                const enable_variant = response0.data.data.find(item => item.name === 'enable_variant')
-                setState((prev) => ({...prev, isVariant:enable_variant.value  === 'True' ? true : false}))
-                setBrand(response3.data.data)
-                setProduct_category(response2.data.data)
-                setUnit(response4.data.data)
-                setTax(response5.data.data)
-                if (productId){
-                    const response6 = await axiosInstance.get(`${DotzBaseUrlV1}/product/products/${organizationDetails.id}/${productId}`)
-                    const result = response6.data.data
-                    console.log("result==code==>",result);
-                    setInitialValues({
-                        ...initialValues,
-                        product_code:result.product_code,
-                        is_active:result.is_active,
-                        name:result.name,
-                        product_category:result.product_category,
-                        brand:result.brand,
-                        unit:result.unit,
-                        tax:result.tax,
-                        purchase_price:result.price_list.purchase_price,
-                        purchase_price_is_included:result.purchase_price_is_included,
-                        original_price:result.price_list.original_price,
-                        sale_price:result.price_list.sales_price,
-                        sale_price_is_included:result.sale_price_is_included,
-                        mrp:result.price_list.mrp,
-                        type:result.product_type,
-                        available:result.available,
-                        hsn_code:result.hsn_code,
-                        bar_code:result.bar_code,
-                        description:result.description,
-                        variant_name:result?.variant_name,
-                        variant_names:result?.variants,
-                        // Image:result.Image,
-
-                    })
-                    if(result.images){
-                        setFileList(result.images.map((image, index) => ({
-                            uid: image.id,
-                            name: 'product_image',
-                            status: 'done',
-                            url: baseUrl+image.url,
-                        })))
-                    }
-                    // form.setFieldsValue({ product_code: response1.data.data });
-                }else{
-
-                    setInitialValues({
-                        ...initialValues,
-                        product_code:response1.data.data,
-                        product_category:response2.data.data[0].id,
-                        brand:response3.data.data[0].id,
-                        unit:response4.data.data[0].id,
-                        tax:response5.data.data[0].id,
-                    })
-                    form.setFieldsValue({ product_code: response1.data.data });
-                }
-                console.log("initialValues=000====>",initialValues);
-
-                setLoader(false)
-                
-            }else{
-                toast.error('Something went wrong!')
-            }
-        } catch (error) {
-            console.log("error123: " + error);
+          const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesCreate(), {
+            attribute_id: attrId,
+            value: valName.trim(),
+            color_code: initialHex,
+            sort_order: existingLibraryValues.length + 1,
+          });
+          match = res.data?.data || res.data;
+          if (match && match.id) {
+            match.color_code = match.color_code || initialHex;
+            existingLibraryValues.push(match);
+            // Update in library state
+            setLibraryAttributes((prev) =>
+              prev.map((a) => (a.id === attrId ? { ...a, values: [...(a.values || []), match] } : a))
+            );
+          }
+        } catch (err) {
+          console.error('Error creating value inline:', err);
+          toast.error(`Failed to create value "${valName}"`);
+          continue;
         }
+      }
+
+      if (match) {
+        updatedSelected.push(match);
+      }
     }
 
-    const formItemLayout = {
-        labelCol: {
-          xs: {
-            span: 24,
-          },
-          sm: {
-            span: 4,
-          },
-        },
-        wrapperCol: {
-          xs: {
-            span: 24,
-          },
-          sm: {
-            span: 20,
-          },
-        },
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              attribute_id: attrId,
+              name: item.name || libraryAttr?.name,
+              selected_values: updatedSelected,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleCreateCustomColorValue = async (index, customName, customColorCode) => {
+    if (!customName || !customName.trim()) {
+      toast.error('Please enter a color name (e.g. Yellow or Mustard)');
+      return;
+    }
+    const row = selectedAttributes[index];
+    const libraryAttr = libraryAttributes.find(
+      (a) => (row.attribute_id && a.id === row.attribute_id) || (row.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row.attribute_id || libraryAttr?.id;
+    if (!attrId) return;
+
+    try {
+      const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesCreate(), {
+        attribute_id: attrId,
+        value: customName.trim(),
+        color_code: customColorCode || '#EAB308',
+        sort_order: (libraryAttr?.values || []).length + 1,
+      });
+      const match = res.data?.data || res.data;
+      if (match && match.id) {
+        match.color_code = match.color_code || customColorCode;
+        // Update library
+        setLibraryAttributes((prev) =>
+          prev.map((a) => (a.id === attrId ? { ...a, values: [...(a.values || []), match] } : a))
+        );
+        // Add to selected values
+        setSelectedAttributes((prev) =>
+          prev.map((item, i) =>
+            i === index
+              ? {
+                  ...item,
+                  attribute_id: attrId,
+                  selected_values: [...(item.selected_values || []).filter((v) => v.id !== match.id), match],
+                }
+              : item
+          )
+        );
+        toast.success(`Created color option "${customName}" (${customColorCode})`);
+      }
+    } catch (err) {
+      toast.error('Failed to create custom color value');
+    }
+  };
+
+  const handleQuickAddLibraryValue = (index, valueObj) => {
+    const current = selectedAttributes[index]?.selected_values || [];
+    if (current.some((v) => v.id === valueObj.id)) return;
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, selected_values: [...current, valueObj] } : item
+      )
+    );
+  };
+
+  // Generate SKU Permutations from Selected Attributes & Values
+  const handleProceedToVariantsStep = () => {
+    const validAttributes = selectedAttributes.filter(
+      (a) => a.attribute_id && a.selected_values && a.selected_values.length > 0
+    );
+
+    if (validAttributes.length === 0) {
+      toast.error('Please configure at least one attribute with values (e.g. Color or Size).');
+      return;
+    }
+
+    // Cartesian Product
+    let combinations = [[]];
+    validAttributes.forEach((attr) => {
+      const newCombos = [];
+      combinations.forEach((prevCombo) => {
+        attr.selected_values.forEach((val) => {
+          newCombos.push([
+            ...prevCombo,
+            {
+              attrId: attr.attribute_id,
+              attrName: attr.name,
+              valId: val.id,
+              valName: val.value,
+              colorCode: val.color_code,
+            },
+          ]);
+        });
+      });
+      combinations = newCombos;
+    });
+
+    const baseCode = form.getFieldValue('product_code') || 'PROD';
+    const baseSalePrice = form.getFieldValue('sale_price') || 0;
+    const baseMrp = form.getFieldValue('mrp') || 0;
+    const basePurchasePrice = form.getFieldValue('purchase_price') || 0;
+
+    const generated = combinations.map((combo, idx) => {
+      const title = combo.map((c) => c.valName).join(' / ');
+      const skuSlug = combo.map((c) => c.valName.toUpperCase().replace(/\s+/g, '-')).join('-');
+      return {
+        id: `temp_${idx}`,
+        sku: `${baseCode}-${skuSlug}`,
+        barcode: `${baseCode}${idx + 100}`,
+        variant_title: title,
+        sales_price: baseSalePrice,
+        mrp: baseMrp,
+        purchase_price: basePurchasePrice,
+        is_default: idx === 0,
+        weight: 0.25,
+        dimensions: '10x10x5',
+        attribute_value_ids: combo.map((c) => c.valId),
+        combo_details: combo,
+        images: [],
       };
+    });
 
-      const formItemLayoutWithOutLabel = {
-        wrapperCol: {
-          xs: {
-            span: 24,
-            offset: 0,
-          },
-          sm: {
-            span: 20,
-            offset: 4,
-          },
-        },
-      };
-      const items = [
-        {
-          key: '1',
-          label: 'Product',
-          children: (
-            <>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item
-                    label="Product name"
-                    name="name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input product name!',
-                        },
-                    ]}
-                    >
-                    <Input />
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Product Code" style={{marginBottom: 0,}}>
-                    <Form.Item
-                        name='product_code'
-                        style={{
-                        display: 'inline-block',
-                        width: 'calc(80% - 12px)',
-                        // width: '70%',
-                        }}
-                        rules={[
-                            {
-                            required: true,
-                            message: 'Please input product code!',
-                            },
-                        ]}
-                    >
-                    <Input name='product_code' style={{color:'#000'}} readOnly/>
-                    </Form.Item>
-                    <span
-                        style={{
-                        display: 'inline-block',
-                        width: '10px',
-                        lineHeight: '32px',
-                        textAlign: 'center',
-                        }}
-                    >
-                        
-                    </span>
-                    <Form.Item
-                        name='auto_product_code'
-                        style={{
-                        display: 'inline-block',
-                        // width: '30%',
-                        width: 'calc(20% - 12px)',
-                        }}
-                    >
-                        <Switch name='auto_product_code' disabled checkedChildren="Auto" unCheckedChildren="Manual" defaultChecked  style={{width:'100px',}}/>
-                    </Form.Item>
-                </Form.Item>
-                </Col>
-                
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Product Category" name='product_category'  >
-                <Select  
-                open={openCategory}
-                onDropdownVisibleChange={(visible) => setOpenCategory(visible)}
-                dropdownRender={(menu) => (
-                    <>
-                    {menu}
-                    <Divider
-                        style={{
-                        margin: '8px 0',
-                        }}
-                    />
-                        <Button block type="text" icon={<PlusOutlined />}
-                         onClick={addCategory}
-                        >
-                        Create New Category
-                        </Button>
-                    </>
-                )}
-                >
-                    {product_category.map(item =>(
-                    <Select.Option key={item.id} value={item.id}>{item.name}</Select.Option>
-                    ))}
-                </Select>
-                </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Brand" name='brand' >
-                <Select 
-                open={openBrand}
-                onDropdownVisibleChange={(visible) => setOpenBrand(visible)}
+    setVariantsList(generated);
+    setCurrentStep(2);
+  };
 
-                dropdownRender={(menu) => (
-                    <>
-                    {menu}
-                    <Divider
-                        style={{
-                        margin: '8px 0',
-                        }}
-                    />
-                        <Button block type="text" icon={<PlusOutlined />}
-                         onClick={addBrand}
-                        >
-                        Create New Brand
-                        </Button>
-                    </>
-                )}
-                >   
-                    {brand.map(item =>(
-                    <Select.Option key={item.id} value={item.id}>{item.name}</Select.Option>
-                    ))}
-                </Select>
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="HSN/SAC Code" name='hsn_code' >
-                        <Input placeholder='1234567'/>
-                </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Bar Code" name='bar_code' >
-                        <Space.Compact
-                        style={{
-                            width: '100%',
-                        }}
-                        >
-                        <Input placeholder='1234567' />
-                        <Button >Generate</Button>
-                        </Space.Compact>
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                   <Form.Item name="unit" label="Unit">
-                        <Select 
-                            open={openUnit}
-                            onDropdownVisibleChange={(visible) => setOpenUnit(visible)}            
-                            dropdownRender={(menu) => (
-                                <>
-                                {menu}
-                                <Divider style={{margin: '8px 0'}} />
-                                    <Button block type="text" icon={<PlusOutlined />}
-                                     onClick={addUnit}
-                                    >
-                                    Create New Unit
-                                    </Button>
-                                </>
-                            )}
-                            style={{
-                                width: '100%',
-                            }}
-                            >
-                            {unit.map(item => (
-                            <Select.Option key={item.id} value={item.id}>
-                            {item.name}
-                            </Select.Option>
-                        ))}
-                        </Select>
-                        
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Tax" name='tax' >
-                <Select 
-                open={openTax}
-                onDropdownVisibleChange={(visible) => setOpenTax(visible)} 
-                dropdownRender={(menu) => (
-                    <>
-                    {menu}
-                    <Divider
-                        style={{
-                        margin: '8px 0',
-                        }}
-                    />
-                        <Button block type="text" icon={<PlusOutlined />}
-                         onClick={addTax}
-                        >
-                        Create New Tax
-                        </Button>
-                    </>
-                )}
-                >
-                    {tax.map(item => (
-                        <Select.Option key={item.id} value={item.id}>{item.name}</Select.Option>
-                    ))}
-                </Select>
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Purchase Price" name='purchase_price' >
-                <InputNumber
-                        addonAfter={<Checkbox disabled> <Tooltip title="Specific based on variant or sub variant">Specific</Tooltip></Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Sales Price" name='sale_price' >
-                <InputNumber
-                        addonAfter={<Checkbox disabled> Specific</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item  name="original_price" label="Minimum Sales Price" >
-                        <InputNumber
-                        addonAfter={<Checkbox disabled> Specific</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item  name="mrp" label="MRP" >
-                        <InputNumber
-                        addonAfter={<Checkbox disabled> Specific</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                    </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item name='display_name' label="Display name">
-                    <Input.TextArea  />
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item name='description' label="Description">
-                    <Input.TextArea rows={5} />
-                    </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Images" name='image_specific'>
-                <Radio.Group>
-                    <Radio value="non"> Non Specific </Radio>
-                    <Radio value="variant" disabled> Variant Specific </Radio>
-                    <Radio value="sub_variant" disabled> SubVariant Specific </Radio>
-                    <Radio value="both" disabled> Both </Radio>
-                </Radio.Group>
-                </Form.Item>
-                </Col>
+  // ----------------------------------------------------
+  // STEP 3: Save Variants & Proceed to Images (Step 4)
+  // ----------------------------------------------------
+  const handleSaveVariants = async () => {
+    if (variantsList.length === 0) {
+      toast.error('No variants configured to create.');
+      return;
+    }
 
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item label="Images" valuePropName="fileList" getValueFromEvent={normFile}>
-                        <ImgCrop rotationSlider>
-                            <Upload
-                                // action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
-                                customRequest={dummyRequest}
-                                listType="picture-card"
-                                fileList={fileList}
-                                onChange={onImgChange}
-                                onPreview={onPreview}
-                                className='org-logo'
-                            >
-                                {fileList.length < 5 && '+ Upload'}
-                            </Upload>
-                        </ImgCrop>
-                    </Form.Item>
-                </Col>
+    setIsSubmitting(true);
+    try {
+      const createdVariants = [];
 
-            </Row>
-            </>
-          ),
-        },
-        state.isVariant &&
-        {
-          key: '2',
-          label: 'Variant',
-          children: (
-            <>
-            <Row gutter={16}>
-            <Col xs={24} sm={24} md={12}>
-                    <Form.Item
-                    label="Variant name"
-                    name="variant_name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input product variant name!',
-                        },
-                    ]}
-                    >
-                    <Input placeholder='Colour'/>
-                    </Form.Item>
-                </Col>
-               
-            </Row>
-            <Row gutter={16}>
-            <Col xs={24} sm={24} md={12}>
-                <Form.List
-                    name="variant_names"
-                    rules={[
-                    {
-                        validator: async (_, names) => {
-                        if (!names || names.length < 1) {
-                            return Promise.reject(new Error('At least 1 variant'));
-                        }
-                        },
-                    },
-                    ]}
-                >
-                    {(fields, { add, remove }, { errors }) => (
-                    <>
-                        {fields.map((field, index) => (
-                        <Form.Item
-                            {...(index === 0 ? formItemLayout : formItemLayoutWithOutLabel)}
-                            label={index === 0 ? 'Variants' : ''}
-                            required={false}
-                            key={field.key}
-                        >
-                            <Form.Item
-                            {...field}
-                            validateTrigger={['onChange', 'onBlur']}
-                            rules={[
-                                {
-                                required: true,
-                                whitespace: true,
-                                message: "Please input variants's name",
-                                },
-                            ]}
-                            noStyle
-                            >
-                            <Input
-                                placeholder="variant name"
-                                style={{
-                                width: '60%',
-                                }}
-                            />
-                            </Form.Item>
-                            {fields.length > 1 ? (
-                            <MinusCircleOutlined
-                                className="dynamic-delete-button"
-                                onClick={() => remove(field.name)}
-                            />
-                            ) : null}
-                        </Form.Item>
-                        ))}
-                        <Form.Item className='text-center'>
-                        <Button
-                            type="dashed"
-                            onClick={() => add()}
-                            style={{
-                            width: '60%',
-                            }}
-                            icon={<PlusOutlined />}
-                        >
-                            Add variant
-                        </Button>
-                        {/* <Button
-                            type="dashed"
-                            onClick={() => {
-                            add('The head item', 0);
-                            }}
-                            style={{
-                            width: '60%',
-                            marginTop: '20px',
-                            }}
-                            icon={<PlusOutlined />}
-                        >
-                            Add field at head
-                        </Button> */}
-                        <Form.ErrorList errors={errors} />
-                        </Form.Item>
-                    </>
-                    )}
-                </Form.List>
-            </Col>
-            </Row>
-            {/* <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Purchase Price" name='purchase_price' >
-                <InputNumber
-                        addonAfter={<Checkbox> <Tooltip title="Same price as given in product">Same as product</Tooltip></Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                <Form.Item label="Sales Price" name='sales_price' >
-                <InputNumber
-                        addonAfter={<Checkbox> Same as product</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                </Form.Item>
-                </Col>
-            </Row>
-            <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item  name="orginal_price" label="Orginal Sales Price" >
-                        <InputNumber
-                        addonAfter={<Checkbox> Same as product</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item  name="mrp" label="MRP" >
-                        <InputNumber
-                        addonAfter={<Checkbox> Same as product</Checkbox>}
-                        style={{ width: '100%', }}
-                        />
-                    </Form.Item>
-                </Col>
-            </Row> */}
-            {/* <Row gutter={16}>
-                <Col xs={24} sm={24} md={12}>
-                    <Form.Item label="Images" valuePropName="fileList" getValueFromEvent={normFile}>
-                        <ImgCrop rotationSlider>
-                            <Upload
-                                customRequest={dummyRequest}
-                                listType="picture-card"
-                                fileList={fileList}
-                                onChange={onImgChange}
-                                onPreview={onPreview}
-                                className='org-logo'
-                            >
-                                {fileList.length < 5 && '+ Upload'}
-                            </Upload>
-                        </ImgCrop>
-                    </Form.Item>
-                </Col>
-                <Col xs={24} sm={24} md={12}>
-                </Col>
+      for (const variant of variantsList) {
+        const payload = {
+          organization_id: orgId,
+          productId: createdProductId,
+          branch_id: 1,
+          sku: variant.sku,
+          barcode: variant.barcode,
+          variant_title: variant.variant_title,
+          sales_price: parseFloat(variant.sales_price || 0),
+          mrp: parseFloat(variant.mrp || 0),
+          purchase_price: parseFloat(variant.purchase_price || 0),
+          is_default: !!variant.is_default,
+          weight: parseFloat(variant.weight || 0),
+          dimensions: variant.dimensions || '',
+          attribute_value_ids: variant.attribute_value_ids || [],
+        };
 
-            </Row> */}
-            </>
-          ),
-        },
-        // {
-        //   key: '3',
-        //   label: 'Sub Variant',
-        //   children: (<>
-        //   <Row gutter={16}>
-        //     <Col xs={24} sm={24} md={12}>
-        //             <Form.Item
-        //             label="SubVariant name"
-        //             name="sub_variant_name"
-        //             rules={[
-        //                 {
-        //                 required: true,
-        //                 message: 'Please input product sub variant name!',
-        //                 },
-        //             ]}
-        //             >
-        //             <Input placeholder='Size'/>
-        //             </Form.Item>
-        //         </Col>
-               
-        //     </Row>
-        //     <Row gutter={16}>
-        //     <Col xs={24} sm={24} md={12}>
-        //         <Form.List
-        //             name="sub_variant_names"
-        //             rules={[
-        //             {
-        //                 validator: async (_, names) => {
-        //                 if (!names || names.length < 1) {
-        //                     return Promise.reject(new Error('At least 1 sub variant'));
-        //                 }
-        //                 },
-        //             },
-        //             ]}
-        //         >
-        //             {(fields, { add, remove }, { errors }) => (
-        //             <>
-        //                 {fields.map((field, index) => (
-        //                 <Form.Item
-        //                     {...(index === 0 ? formItemLayout : formItemLayoutWithOutLabel)}
-        //                     label={index === 0 ? 'SubVariant' : ''}
-        //                     required={false}
-        //                     key={field.key}
-        //                 >
-        //                     <Form.Item
-        //                     {...field}
-        //                     validateTrigger={['onChange', 'onBlur']}
-        //                     rules={[
-        //                         {
-        //                         required: true,
-        //                         whitespace: true,
-        //                         message: "Please input sub variants's name or delete this field.",
-        //                         },
-        //                     ]}
-        //                     noStyle
-        //                     >
-        //                     <Input
-        //                         placeholder="sub variant name"
-        //                         style={{
-        //                         width: '60%',
-        //                         }}
-        //                     />
-        //                     </Form.Item>
-        //                     {fields.length > 1 ? (
-        //                     <MinusCircleOutlined
-        //                         className="dynamic-delete-button"
-        //                         onClick={() => remove(field.name)}
-        //                     />
-        //                     ) : null}
-        //                 </Form.Item>
-        //                 ))}
-        //                 <Form.Item className='text-center'>
-        //                 <Button
-        //                     type="dashed"
-        //                     onClick={() => add()}
-        //                     style={{
-        //                     width: '60%',
-        //                     }}
-        //                     icon={<PlusOutlined />}
-        //                 >
-        //                     Add SubVariant
-        //                 </Button>
-        //                 {/* <Button
-        //                     type="dashed"
-        //                     onClick={() => {
-        //                     add('The head item', 0);
-        //                     }}
-        //                     style={{
-        //                     width: '60%',
-        //                     marginTop: '20px',
-        //                     }}
-        //                     icon={<PlusOutlined />}
-        //                 >
-        //                     Add field at head
-        //                 </Button> */}
-        //                 <Form.ErrorList errors={errors} />
-        //                 </Form.Item>
-        //             </>
-        //             )}
-        //         </Form.List>
-        //     </Col>
-        //     {/* <Col xs={24} sm={24} md={12}>
-                    
-        //     </Col> */}
-        //     </Row>
-        //     <Row gutter={16}>
-        //         <Col xs={24} sm={24} md={12}>
-        //         <Form.Item label="Purchase Price" name='purchase_price' >
-        //         <InputNumber
-        //                 addonAfter={<Checkbox> <Tooltip title="Same price as given in product variant">Same as variant</Tooltip></Checkbox>}
-        //                 style={{ width: '100%', }}
-        //                 />
-        //         </Form.Item>
-        //         </Col>
-        //         <Col xs={24} sm={24} md={12}>
-        //         <Form.Item label="Sales Price" name='sales_price' >
-        //         <InputNumber
-        //                 addonAfter={<Checkbox> Same as variant</Checkbox>}
-        //                 style={{ width: '100%', }}
-        //                 />
-        //         </Form.Item>
-        //         </Col>
-        //     </Row>
-        //     <Row gutter={16}>
-        //         <Col xs={24} sm={24} md={12}>
-        //             <Form.Item  name="orginal_price" label="Orginal Sales Price" >
-        //                 <InputNumber
-        //                 addonAfter={<Checkbox> Same as variant</Checkbox>}
-        //                 style={{ width: '100%', }}
-        //                 />
-        //             </Form.Item>
-        //         </Col>
-        //         <Col xs={24} sm={24} md={12}>
-        //             <Form.Item  name="mrp" label="MRP" >
-        //                 <InputNumber
-        //                 addonAfter={<Checkbox> Same as variant</Checkbox>}
-        //                 style={{ width: '100%', }}
-        //                 />
-        //             </Form.Item>
-        //         </Col>
-        //     </Row>
-            
-        //   </>),
-        // },
-        // {
-        //     key: '4',
-        //     label: 'Stock',
-        //     children: (<>
-        //     {stocks.map((stock, index) =>{
-        //         return(
-        //         <Row gutter={16}>
-        //             <Col flex={3}>
-        //                 <Text>{stock.variant} </Text>
-        //             </Col>
-        //             <Col flex={3}>
-        //                 <Text>{stock.subVariant}</Text>
-        //             </Col>
-        //             <Col flex={1}>
-        //             <Form.Item
-        //                 // label="Stock"
-        //                 name={`stock${index}`}
-        //                 rules={[
-        //                     {
-        //                     required: true,
-        //                     message: 'Please input product sub variant name!',
-        //                     },
-        //                 ]}
-        //                 >
-        //                 <Input placeholder='Opening Stock' defaultValue='0' />
-        //             </Form.Item>
-        //             </Col>
-        //         </Row>
-        //         )
-        //     })}
-        //     </>)
-        // }
-      ];
-    
+        const res = await axiosInstance.post(API_ENDPOINTS.variantCreate(), payload);
+        const createdData = res.data?.data || res.data;
+        if (createdData && createdData.id) {
+          createdVariants.push({
+            ...variant,
+            id: createdData.id,
+            images: [],
+          });
+        }
+      }
 
-    
-    useEffect(() => {
-      fetchInitial();
-    //   if (productId){
-    //     fetchProduct()
-    //   }
-    }, []);
+      setVariantsList(createdVariants);
+      toast.success('All product variants registered! Proceed to upload media.');
+      setCurrentStep(3);
+    } catch (err) {
+      console.error('Variant creation error:', err);
+      toast.error('Error creating product variants. Please review SKU inputs.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    // useEffect(()=>{
-    //     if (searchParams.get('id')){
-    //         se
-    //     //   setResetMode(true);
-    //     //   setOtp_disable(true)
-    //     }    
-    //   },[])
-    
-        console.log("state===0000===>",state);
+  // ----------------------------------------------------
+  // STEP 4: Upload Variant Images
+  // ----------------------------------------------------
+  const handleUploadVariantImage = async (variantId, file) => {
+    const variant = variantsList.find((v) => v.id === variantId);
+    if (!variant) return false;
+
+    const isPrimary = (variant.images || []).length === 0;
+    const sortOrder = (variant.images || []).length + 1;
+
+    const formData = new FormData();
+    formData.append('organization_id', orgId);
+    formData.append('variant_id', variantId);
+    formData.append('image', file);
+    formData.append('is_primary', isPrimary ? 'true' : 'false');
+    formData.append('sort_order', String(sortOrder));
+
+    try {
+      const res = await axiosInstance.post(API_ENDPOINTS.variantImageUpload(), formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data?.status === 1000 || res.data?.status_code === 1000 || res.status === 201) {
+        toast.success(`Image uploaded for ${variant.sku || variant.variant_title}`);
+        const uploadedImg = res.data?.data;
+        if (uploadedImg) {
+          const imgUrl = uploadedImg.image
+            ? (uploadedImg.image.startsWith('http') ? uploadedImg.image : baseUrl + uploadedImg.image)
+            : '';
+          setVariantsList((prev) =>
+            prev.map((v) =>
+              v.id === variantId
+                ? {
+                    ...v,
+                    images: [
+                      ...(v.images || []),
+                      {
+                        uid: uploadedImg.id || Math.random().toString(),
+                        name: 'variant_img',
+                        status: 'done',
+                        url: imgUrl,
+                      },
+                    ],
+                  }
+                : v
+            )
+          );
+        }
+      } else {
+        toast.error(res.data?.message || 'Failed to upload variant image');
+      }
+    } catch (err) {
+      console.error('Variant image upload error:', err);
+      toast.error('Image upload failed');
+    }
+    return false;
+  };
+
+  if (loader) {
+    return (
+      <div className="p-6 sm:p-8 bg-slate-50 min-h-screen">
+        <Skeleton active paragraph={{ rows: 12 }} />
+      </div>
+    );
+  }
+
+  // Calculate total combinations preview
+  const validAttrsForPreview = selectedAttributes.filter((a) => a.attribute_id && a.selected_values?.length > 0);
+  const totalCombinationsCount = validAttrsForPreview.reduce((acc, a) => acc * (a.selected_values.length || 1), validAttrsForPreview.length ? 1 : 0);
 
   return (
-    <div>
-        {loader?
-        <div>
-            <Row>
-                <Col span={12} >
-                    <Skeleton  active paragraph={{rows: 15,}}  style={{width:'75%'}}/>
-                </Col>
-                <Col span={12}>
-                    <Skeleton active  paragraph={{rows: 15,}}/>
-                </Col>
-            </Row>
-            <br/><br/><br/><br/>
-            <Space>
-                <Skeleton.Button active   block />
-                <Skeleton.Avatar active   />
-                <Skeleton.Input active  />
-            </Space>
+    <div className="p-4 sm:p-8 bg-slate-50 min-h-screen text-slate-900">
+      <Card
+        style={{
+          background: '#ffffff',
+          borderColor: '#e2e8f0',
+          borderRadius: '0.75rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+        }}
+        className="max-w-6xl mx-auto"
+      >
+        {/* Header Title */}
+        <Flex justify="space-between" align="center" className="mb-6">
+          <div>
+            <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
+              Create Product & Catalog SKUs
+            </Title>
+            <Text style={{ color: '#64748b' }}>
+              Configure master details, variant matrix, individual pricing, and SKU media
+            </Text>
+          </div>
+          <Button onClick={() => router.push('/admin/products')} icon={<ArrowLeftOutlined />}>
+            Cancel
+          </Button>
+        </Flex>
 
-        </div>
-        :
-        <div className='mb-16'>
-            <Form
-                encType='multipart/form-data'
-                form={form}
-                // layout="vertical"
-                // style={{
-                //     maxWidth: 600,
-                //   }}
-                initialValues={initialValues}
-                name="product"
-                onFinish={onFinish}
-                onFinishFailed={onFinishFailed}
-                {...formItemLayout}
-            >
-                <div  style={{display:'flex',justifyContent:'space-between', alignItems:'center'}} >
-                <Title level={4}>{productId ? 'Update Product' : 'Create Product'}</Title>
-                <Form.Item name='is_active'>
-                {/* <Space>Status: */}
-                    <Switch  defaultChecked={initialValues.is_active} name='is_active' checkedChildren="Active" unCheckedChildren="Inactive" style={{width:'100px',}}/>
-                {/* </Space> */}
+        {/* 4-Step Navigation */}
+        <Steps
+          current={currentStep}
+          items={[
+            { title: '1. Basic Details', icon: <ShoppingOutlined /> },
+            { title: '2. Attributes & Values', icon: <TagsOutlined /> },
+            { title: '3. Variants & Pricing', icon: <AppstoreOutlined /> },
+            { title: '4. Variant Media', icon: <PictureOutlined /> },
+          ]}
+          className="!mb-8"
+        />
+
+        <Divider style={{ borderColor: '#e2e8f0' }} />
+
+        {/* ============================================================ */}
+        {/* STEP 1: BASIC DETAILS                                        */}
+        {/* ============================================================ */}
+        {currentStep === 0 && (
+          <Form form={form} layout="vertical" onFinish={handleSaveBaseProduct}>
+            <Title level={5} className="!mb-4 text-slate-800">
+              General Information
+            </Title>
+            <Row gutter={16}>
+              <Col xs={24} md={14}>
+                <Form.Item
+                  label="Product Title / Name"
+                  name="name"
+                  rules={[{ required: true, message: 'Please enter product name' }]}
+                >
+                  <Input size="large" placeholder="e.g. Classic Cotton Crewneck T-Shirt" />
                 </Form.Item>
-                </div>
-                <Divider />
-
-                <Tabs defaultActiveKey="1" items={items} type="card" onChange={onTabChange} />
-        
-                
-
-            <Row>
-                <Col span={24}>
-                <div className="fixed-bottom-sm" style={{padding:'7px'}}>
-                    <Flex gap="middle" align="center" justify='center'>
-                    <Button  shape="round" 
-                    // htmlType='reset'
-                    onClick={resetForm} 
-                    size={'large'} danger type='dashed'>Clear</Button>
-                
-                    <Button type="primary" shape="round"  htmlType="submit" 
-                    onClick={() => setnav(false)} 
-                    style={{backgroundColor:'#008080'}}
-                    size={'large'}>Save & Add New </Button>
-                    <Button type="primary" shape="round"  block  htmlType="submit" 
-                    onClick={() => setnav(true)}
-                    size={'large'}>Save </Button>
-                    </Flex>
-                </div>
-                </Col>
+              </Col>
+              <Col xs={24} md={10}>
+                <Form.Item
+                  label="Product Code / SKU Prefix"
+                  name="product_code"
+                  rules={[{ required: true, message: 'Please enter product code' }]}
+                >
+                  <Input size="large" placeholder="e.g. PRD-1001" />
+                </Form.Item>
+              </Col>
             </Row>
-            
-            </Form>
 
-            {/* --------- MODALS ------ */}
-            <Modal
-                title="Create a new Category"
-                centered
-                open={categoryModalOpen}
-                // onOk={createBrand()}
-                okText='Create'
-                onCancel={() => setCategoryModalOpen(false)}
-                footer={null}
-            >
-                 <Form
-                    form={categoryForm}
-                    name="category_form"
-                    labelCol={{
-                    span: 4,
-                    }}
-                    // wrapperCol={{
-                    // span: 16,
-                    // }}
-                    style={{
-                    maxWidth: 600,
-                    paddingTop:'17px'
-                    }}
-                    // initialValues={{
-                    // remember: true,
-                    // }}
-                    onFinish={createCategory}
-                    // onFinishFailed={onFinishFailed}
-                    autoComplete="off"
+            <Title level={5} className="!mt-4 !mb-4 text-slate-800">
+              Classification & Master Data
+            </Title>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="Category" name="product_category">
+                  <Select
+                    size="large"
+                    placeholder="Select category"
+                    dropdownRender={(menu) => (
+                      <>
+                        {menu}
+                        <Divider style={{ margin: '8px 0' }} />
+                        <Button block type="text" icon={<PlusOutlined />} onClick={() => setCategoryModalOpen(true)}>
+                          Create Category
+                        </Button>
+                      </>
+                    )}
+                  >
+                    {categories.map((c) => (
+                      <Option key={c.id} value={c.id}>
+                        {c.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="Brand" name="brand">
+                  <Select
+                    size="large"
+                    placeholder="Select brand"
+                    dropdownRender={(menu) => (
+                      <>
+                        {menu}
+                        <Divider style={{ margin: '8px 0' }} />
+                        <Button block type="text" icon={<PlusOutlined />} onClick={() => setBrandModalOpen(true)}>
+                          Create Brand
+                        </Button>
+                      </>
+                    )}
+                  >
+                    {brands.map((b) => (
+                      <Option key={b.id} value={b.id}>
+                        {b.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="Unit" name="unit">
+                  <Select size="large">
+                    {units.map((u) => (
+                      <Option key={u.id} value={u.id}>
+                        {u.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="Tax Slab" name="tax">
+                  <Select size="large">
+                    {taxes.map((t) => (
+                      <Option key={t.id} value={t.id}>
+                        {t.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Title level={5} className="!mt-4 !mb-4 text-slate-800">
+              Base Pricing & Identifiers
+            </Title>
+            <Row gutter={16}>
+              <Col xs={24} sm={8} md={4}>
+                <Form.Item label="Cost Price (₹)" name="purchase_price">
+                  <InputNumber size="large" style={{ width: '100%' }} prefix="₹" min={0} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8} md={4}>
+                <Form.Item label="Default Sales Price (₹)" name="sale_price">
+                  <InputNumber size="large" style={{ width: '100%' }} prefix="₹" min={0} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8} md={4}>
+                <Form.Item label="MRP (₹)" name="mrp">
+                  <InputNumber size="large" style={{ width: '100%' }} prefix="₹" min={0} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="HSN / SAC Code" name="hsn_code">
+                  <Input size="large" placeholder="e.g. 610910" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item label="Barcode" name="bar_code">
+                  <Input size="large" placeholder="e.g. 8901234567890" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item label="Description" name="description">
+              <Input.TextArea rows={3} placeholder="Enter overview of this product catalog item..." />
+            </Form.Item>
+
+            <div className="p-4 bg-slate-100 rounded-lg mb-6 flex justify-between items-center border border-slate-200">
+              <div>
+                <Text strong className="!block text-slate-900">Configure Multi-SKU Variants?</Text>
+                <Text type="secondary" className="!text-xs">
+                  Enable if this product has multiple variations (e.g. different Colors, Sizes, Materials)
+                </Text>
+              </div>
+              <Switch checked={hasVariants} onChange={(val) => setHasVariants(val)} />
+            </div>
+
+            <Flex justify="end">
+              <Button
+                type="primary"
+                size="large"
+                htmlType="submit"
+                loading={isSubmitting}
+                icon={hasVariants ? <ArrowRightOutlined /> : <CheckCircleOutlined />}
+                style={{ backgroundColor: '#1BA098', borderColor: '#1BA098', borderRadius: '0.5rem' }}
+              >
+                {hasVariants ? 'Save & Configure Attributes Matrix' : 'Save Base Product'}
+              </Button>
+            </Flex>
+          </Form>
+        )}
+
+        {/* ============================================================ */}
+        {/* STEP 2: ATTRIBUTES & VALUES (SELECT LIBRARY / CREATE INLINE) */}
+        {/* ============================================================ */}
+        {currentStep === 1 && (
+          <div>
+            <Flex justify="space-between" align="center" className="mb-4">
+              <div>
+                <Title level={4} style={{ margin: 0 }}>
+                  Step 2: Variant Attributes & Values
+                </Title>
+                <Text type="secondary" className="text-xs">
+                  Select existing attributes from your organization library or type new options to create them inline.
+                </Text>
+              </div>
+              {totalCombinationsCount > 0 && (
+                <Tag color="cyan" className="text-sm font-semibold px-3 py-1">
+                  Matrix: {validAttrsForPreview.length} Attributes ➔ {totalCombinationsCount} Variant SKUs
+                </Tag>
+              )}
+            </Flex>
+
+            <div className="space-y-4 mb-6">
+              {selectedAttributes.map((row, index) => {
+                const libraryAttr = libraryAttributes.find(
+                  (a) => (row.attribute_id && a.id === row.attribute_id) || (row.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+                );
+                const unselectedLibraryValues = (libraryAttr?.values || []).filter(
+                  (lv) => !(row.selected_values || []).some((sv) => sv.id === lv.id || sv.value?.toLowerCase() === lv.value?.toLowerCase())
+                );
+
+                return (
+                  <Card
+                    key={index}
+                    className="border border-slate-200 bg-slate-50/75 rounded-lg shadow-sm"
+                    bodyStyle={{ padding: '16px' }}
+                  >
+                    <Row gutter={16} align="middle">
+                      {/* 1. Attribute Selector / Creator */}
+                      <Col xs={24} md={8}>
+                        <Text strong className="block mb-1 text-slate-800">
+                          Option Name
+                        </Text>
+                        <Select
+                          showSearch
+                          size="large"
+                          placeholder="e.g. Color, Size, Material"
+                          className="w-full"
+                          value={libraryAttr?.id || row.attribute_id || undefined}
+                          onChange={(val) => handleSelectOrCreateAttribute(index, val)}
+                          filterOption={(input, option) =>
+                            (option?.label || '').toLowerCase().includes(input.toLowerCase())
+                          }
+                          options={libraryAttributes.map((a) => ({
+                            label: `${a.name} (${(a.values || []).length} library values)`,
+                            value: a.id,
+                          }))}
+                          dropdownRender={(menu) => (
+                            <>
+                              {menu}
+                              <Divider style={{ margin: '8px 0' }} />
+                              <div className="px-3 py-1 text-xs text-slate-500 bg-slate-50">
+                                💡 Tip: Type any new name and press enter to create on-the-fly
+                              </div>
+                            </>
+                          )}
+                        />
+                      </Col>
+
+                      {/* 2. Values Tag Matrix */}
+                      <Col xs={24} md={14}>
+                        <Text strong className="block mb-1 text-slate-800">
+                          Option Values
+                        </Text>
+                        <Select
+                          mode="tags"
+                          size="large"
+                          disabled={!libraryAttr && !row.attribute_id}
+                          placeholder={
+                            libraryAttr
+                              ? `Select ${libraryAttr.name} values or type new & press Enter`
+                              : 'Select an option name first'
+                          }
+                          className="w-full"
+                          value={(row.selected_values || []).map((v) => v.value)}
+                          onChange={(vals) => handleSelectOrCreateValues(index, vals)}
+                          options={(libraryAttr?.values || []).map((lv) => ({
+                            label: (
+                              <div className="flex items-center gap-2">
+                                {lv.color_code && (
+                                  <span
+                                    className="w-3 h-3 rounded-full border border-black/25 inline-block"
+                                    style={{ backgroundColor: lv.color_code }}
+                                  />
+                                )}
+                                <span>{lv.value}</span>
+                              </div>
+                            ),
+                            value: lv.value,
+                          }))}
+                          filterOption={(input, option) =>
+                            (option?.value || '').toLowerCase().includes(input.toLowerCase())
+                          }
+                        />
+                      </Col>
+
+                      {/* Remove Option Button */}
+                      <Col xs={24} md={2} className="text-right">
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() =>
+                            setSelectedAttributes((prev) => prev.filter((_, i) => i !== index))
+                          }
+                        />
+                      </Col>
+                    </Row>
+
+                    {/* Quick-Pick Chips from Library Values */}
+                    {unselectedLibraryValues.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center gap-2 flex-wrap">
+                        <Text type="secondary" className="text-xs font-medium">
+                          Quick add from library:
+                        </Text>
+                        {unselectedLibraryValues.map((lv) => (
+                          <Tag
+                            key={lv.id}
+                            className="cursor-pointer hover:border-teal-500 hover:text-teal-700 bg-white border-slate-300 flex items-center gap-1.5 py-0.5 px-2 transition-colors"
+                            onClick={() => handleQuickAddLibraryValue(index, lv)}
+                          >
+                            {(lv.color_code || (libraryAttr?.display_type || row.display_type) === 'color') && (
+                              <span
+                                className="w-2.5 h-2.5 rounded-full inline-block border border-black/20"
+                                style={{ backgroundColor: lv.color_code || detectColorHex(lv.value) }}
+                              />
+                            )}
+                            <span className="font-medium text-xs">{lv.value}</span>
+                            <PlusOutlined style={{ fontSize: 9 }} />
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Dedicated Custom Color Creation Bar (when color attribute) */}
+                    {(libraryAttr?.display_type === 'color' || row.display_type === 'color' || (row.name && row.name.toLowerCase().includes('color'))) && (
+                      <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center gap-2 flex-wrap bg-white p-2.5 rounded border border-slate-200">
+                        <BgColorsOutlined className="text-teal-600" />
+                        <Text type="secondary" className="text-xs font-medium">Add New Color with Hex Picker:</Text>
+                        <Input
+                          size="small"
+                          placeholder="e.g. Mustard Yellow"
+                          className="w-44"
+                          value={customColorName[index] || ''}
+                          onChange={(e) => setCustomColorName((prev) => ({ ...prev, [index]: e.target.value }))}
+                          onPressEnter={() => {
+                            handleCreateCustomColorValue(index, customColorName[index], customColorHex[index] || '#EAB308');
+                            setCustomColorName((prev) => ({ ...prev, [index]: '' }));
+                          }}
+                        />
+                        <input
+                          type="color"
+                          className="w-7 h-7 p-0 border border-slate-300 rounded cursor-pointer"
+                          value={customColorHex[index] || '#EAB308'}
+                          onChange={(e) => setCustomColorHex((prev) => ({ ...prev, [index]: e.target.value }))}
+                        />
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+                          onClick={() => {
+                            handleCreateCustomColorValue(index, customColorName[index], customColorHex[index] || '#EAB308');
+                            setCustomColorName((prev) => ({ ...prev, [index]: '' }));
+                          }}
+                        >
+                          Add Color Value
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+
+              <Button
+                type="dashed"
+                block
+                size="large"
+                icon={<PlusOutlined />}
+                onClick={() =>
+                  setSelectedAttributes((prev) => [
+                    ...prev,
+                    { attribute_id: null, name: '', display_type: 'button', selected_values: [] },
+                  ])
+                }
+              >
+                Add Another Option (e.g. Size, Material)
+              </Button>
+            </div>
+
+            <Flex justify="space-between">
+              <Button onClick={() => setCurrentStep(0)} icon={<ArrowLeftOutlined />}>
+                Back to Details
+              </Button>
+              <Button
+                type="primary"
+                size="large"
+                icon={<ArrowRightOutlined />}
+                style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+                onClick={handleProceedToVariantsStep}
+              >
+                Next: Configure SKU Matrix ({totalCombinationsCount} Variants)
+              </Button>
+            </Flex>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* STEP 3: CONFIGURE VARIANTS & PRICING                         */}
+        {/* ============================================================ */}
+        {currentStep === 2 && (
+          <div>
+            <Flex justify="space-between" align="center" className="mb-4">
+              <div>
+                <Title level={4} style={{ margin: 0 }}>
+                  Step 3: Review SKUs, Pricing & Defaults
+                </Title>
+                <Text type="secondary" className="text-xs">
+                  Confirm generated SKU identifiers, adjust specific variant prices, and choose default variant
+                </Text>
+              </div>
+              <Tag color="geekblue" className="font-medium">
+                {variantsList.length} Total SKUs
+              </Tag>
+            </Flex>
+
+            <div className="space-y-3 mb-6">
+              {variantsList.map((variant, vIdx) => (
+                <Card
+                  key={vIdx}
+                  size="small"
+                  className="border border-slate-200 bg-white hover:border-slate-300 transition-colors"
                 >
-                    <Form.Item
-                    label="Name"
-                    name="category_name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your category name!',
-                        },
-                    ]}
-                    >
-                    <Input />
-                    </Form.Item>
+                  <Flex justify="space-between" align="center" className="mb-3">
+                    <Space size="middle">
+                      <Badge
+                        status={variant.is_default ? 'success' : 'default'}
+                        text={<Text strong className="text-base text-slate-800">{variant.variant_title}</Text>}
+                      />
+                      <Space size={[4, 4]}>
+                        {(variant.combo_details || []).map((c, ci) => (
+                          <Tag key={ci} color="blue" className="text-xs font-mono">
+                            {c.attrName}: {c.valName}
+                          </Tag>
+                        ))}
+                      </Space>
+                    </Space>
 
-                    <Form.Item
-                    label="Description"
-                    name="description"
-                    >
-                    <Input.TextArea />
-                    </Form.Item>
+                    <Switch
+                      checkedChildren="Default SKU"
+                      unCheckedChildren="Variant"
+                      checked={variant.is_default}
+                      onChange={(checked) => {
+                        setVariantsList((prev) =>
+                          prev.map((v, i) => ({ ...v, is_default: i === vIdx ? checked : false }))
+                        );
+                      }}
+                    />
+                  </Flex>
 
-                    <Form.Item>
-                    <Button type="primary" htmlType="submit" block >
-                        Create
-                    </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
+                  <Row gutter={12}>
+                    <Col xs={24} md={6}>
+                      <Form.Item label="SKU Code" className="!mb-1">
+                        <Input
+                          value={variant.sku}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setVariantsList((prev) =>
+                              prev.map((v, i) => (i === vIdx ? { ...v, sku: val } : v))
+                            );
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={6}>
+                      <Form.Item label="Sales Price (₹)" className="!mb-1">
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          prefix="₹"
+                          value={variant.sales_price}
+                          onChange={(val) => {
+                            setVariantsList((prev) =>
+                              prev.map((v, i) => (i === vIdx ? { ...v, sales_price: val } : v))
+                            );
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={6}>
+                      <Form.Item label="MRP (₹)" className="!mb-1">
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          prefix="₹"
+                          value={variant.mrp}
+                          onChange={(val) => {
+                            setVariantsList((prev) =>
+                              prev.map((v, i) => (i === vIdx ? { ...v, mrp: val } : v))
+                            );
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} md={6}>
+                      <Form.Item label="Purchase Price (₹)" className="!mb-1">
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          prefix="₹"
+                          value={variant.purchase_price}
+                          onChange={(val) => {
+                            setVariantsList((prev) =>
+                              prev.map((v, i) => (i === vIdx ? { ...v, purchase_price: val } : v))
+                            );
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Card>
+              ))}
+            </div>
 
-            <Modal
-                title="Create a new Brand"
-                centered
-                open={brandModalOpen}
-                // onOk={createBrand()}
-                okText='Create'
-                onCancel={() => setBrandModalOpen(false)}
-                footer={null}
-            >
-                 <Form
-                    name="brand_form"
-                    form={brandForm}
-                    labelCol={{
-                    span: 4,
-                    }}
-                    // wrapperCol={{
-                    // span: 16,
-                    // }}
-                    style={{
-                    maxWidth: 600,
-                    paddingTop:'17px'
-                    }}
-                    // initialValues={{
-                    // remember: true,
-                    // }}
-                    onFinish={createBrand}
-                    // onFinishFailed={onFinishFailed}
-                    autoComplete="off"
-                >
-                    <Form.Item
-                    label="Name"
-                    name="brand_name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your brand name!',
-                        },
-                    ]}
-                    >
-                    <Input />
-                    </Form.Item>
+            <Flex justify="space-between">
+              <Button onClick={() => setCurrentStep(1)} icon={<ArrowLeftOutlined />}>
+                Back to Attributes
+              </Button>
+              <Button
+                type="primary"
+                size="large"
+                loading={isSubmitting}
+                icon={<ArrowRightOutlined />}
+                style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+                onClick={handleSaveVariants}
+              >
+                Save Variants & Upload Images
+              </Button>
+            </Flex>
+          </div>
+        )}
 
-                    <Form.Item
-                    label="Description"
-                    name="description"
-                    >
-                    <Input.TextArea />
-                    </Form.Item>
+        {/* ============================================================ */}
+        {/* STEP 4: VARIANT & CATALOG MEDIA                              */}
+        {/* ============================================================ */}
+        {currentStep === 3 && (
+          <div>
+            <Flex justify="space-between" align="center" className="mb-4">
+              <div>
+                <Title level={4} style={{ margin: 0 }}>
+                  Step 4: Upload Variant Media & Photos
+                </Title>
+                <Text type="secondary" className="text-xs">
+                  Attach specific photographs and swatches to each variant SKU
+                </Text>
+              </div>
+              <Tag color="success" className="font-semibold text-xs px-3 py-1">
+                ✓ Base Product & Variants Created
+              </Tag>
+            </Flex>
 
-                    <Form.Item>
-                    <Button type="primary" htmlType="submit" block >
-                        Create
-                    </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
+            <Row gutter={[16, 16]} className="mb-8">
+              {variantsList.map((variant) => (
+                <Col xs={24} md={12} key={variant.id}>
+                  <Card
+                    size="small"
+                    className="border border-slate-200 rounded-lg shadow-sm"
+                    title={
+                      <Flex justify="space-between" align="center">
+                        <Space>
+                          <Text strong className="text-slate-800">{variant.variant_title}</Text>
+                          <Tag color="cyan" className="font-mono text-xs">{variant.sku}</Tag>
+                        </Space>
+                        <Text strong className="text-sky-700">₹{variant.sales_price}</Text>
+                      </Flex>
+                    }
+                  >
+                    <ImgCrop rotationSlider aspect={1 / 1}>
+                      <Upload
+                        listType="picture-card"
+                        fileList={variant.images || []}
+                        beforeUpload={(file) => handleUploadVariantImage(variant.id, file)}
+                        showUploadList={{ showRemoveIcon: false }}
+                      >
+                        <div>
+                          <PlusOutlined />
+                          <div style={{ marginTop: 8 }} className="text-xs">Upload Photo</div>
+                        </div>
+                      </Upload>
+                    </ImgCrop>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
 
-            <Modal
-                title="Create a new Unit"
-                centered
-                open={unitModalOpen}
-                // onOk={createBrand()}
-                okText='Create'
-                onCancel={() => setUnitModalOpen(false)}
-                footer={null}
-            >
-                 <Form
-                    form={unitForm}
-                    name="unit_form"
-                    labelCol={{
-                    span: 4,
-                    }}
-                    // wrapperCol={{
-                    // span: 16,
-                    // }}
-                    style={{
-                    maxWidth: 600,
-                    paddingTop:'17px'
-                    }}
-                    // initialValues={{
-                    // remember: true,
-                    // }}
-                    onFinish={createUnit}
-                    // onFinishFailed={onFinishFailed}
-                    autoComplete="off"
-                >
-                    <Form.Item
-                    label="Name"
-                    name="unit_name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your unit name!',
-                        },
-                    ]}
-                    >
-                    <Input />
-                    </Form.Item>
+            <Flex justify="end">
+              <Button
+                type="primary"
+                size="large"
+                icon={<CheckCircleOutlined />}
+                style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+                onClick={() => {
+                  toast.success('Catalog creation finished successfully!');
+                  router.push('/admin/products');
+                }}
+              >
+                Complete & View Products Catalog
+              </Button>
+            </Flex>
+          </div>
+        )}
+      </Card>
 
-                    <Form.Item
-                    label="Abbreviation"
-                    name="abbreviation"
-                    >
-                    <Input placeholder='eg:- KG, Ltr, Mg, etc...' />
-                    </Form.Item>
+      {/* Master Data Creation Modals */}
+      <Modal
+        title="Create New Category"
+        open={categoryModalOpen}
+        onCancel={() => setCategoryModalOpen(false)}
+        footer={null}
+      >
+        <Form form={categoryForm} layout="vertical" onFinish={handleCreateCategory}>
+          <Form.Item name="category_name" label="Category Name" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block style={{ backgroundColor: '#1BA098' }}>
+            Create Category
+          </Button>
+        </Form>
+      </Modal>
 
-                    <Form.Item
-                    label="Description"
-                    name="description"
-                    >
-                    <Input.TextArea />
-                    </Form.Item>
-
-                    <Form.Item>
-                    <Button type="primary" htmlType="submit" block >
-                        Create
-                    </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-
-            <Modal
-                title="Create a new Tax"
-                centered
-                open={taxModalOpen}
-                // onOk={createBrand()}
-                okText='Create'
-                onCancel={() => setTaxModalOpen(false)}
-                footer={null}
-            >
-                 <Form
-                    form={taxForm}
-                    name="tax_form"
-                    labelCol={{
-                    span: 6,
-                    }}
-                    // wrapperCol={{
-                    // span: 14,
-                    // }}
-                    style={{
-                    maxWidth: 600,
-                    paddingTop:'17px'
-                    }}
-                    // initialValues={{
-                    // remember: true,
-                    // }}
-                    onFinish={createTax}
-                    // onFinishFailed={onFinishFailed}
-                    autoComplete="off"
-                >
-                    <Form.Item
-                    label="Name"
-                    name="tax_name"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your tax name!',
-                        },
-                    ]}
-                    >
-                    <Input />
-                    </Form.Item>
-
-                    <Form.Item
-                    label="Purchase Rate"
-                    name="purchase_rate"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your purchase rate!',
-                        },
-                    ]}
-                    >
-                    <Input type='number' placeholder='0 - 100 (%)' />
-                    </Form.Item>
-                    <Form.Item
-                    label="Sale Rate"
-                    name="sale_rate"
-                    rules={[
-                        {
-                        required: true,
-                        message: 'Please input your sale rate!',
-                        },
-                    ]}
-                    >
-                    <Input type='number' placeholder='0 - 100 (%)' />
-                    </Form.Item>
-
-                    <Form.Item
-                    label="Description"
-                    name="description"
-                    >
-                    <Input.TextArea />
-                    </Form.Item>
-
-                    <Form.Item>
-                    <Button type="primary" htmlType="submit" block >
-                        Create
-                    </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            
-        </div>
-        }
+      <Modal
+        title="Create New Brand"
+        open={brandModalOpen}
+        onCancel={() => setBrandModalOpen(false)}
+        footer={null}
+      >
+        <Form form={brandForm} layout="vertical" onFinish={handleCreateBrand}>
+          <Form.Item name="brand_name" label="Brand Name" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block style={{ backgroundColor: '#1BA098' }}>
+            Create Brand
+          </Button>
+        </Form>
+      </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default CreateProduct
+export default CreateProduct;

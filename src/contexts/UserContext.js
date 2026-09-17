@@ -1,74 +1,140 @@
-"use client"
-import axiosInstance from '@/utils/axiosInstance';
-import axiosInstanceUser from '@/utils/axiosInstanceUser';
-import { AccountsBaseUrl } from '@/utils/GlobalVariables';
-import { createContext, useState, useEffect, useContext } from 'react';
+"use client";
 
-// Create UserContext
+import axiosInstance from '@/utils/axiosInstance';
+import { DotzBaseUrl } from '@/utils/GlobalVariables';
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+
 const UserContext = createContext();
 
 export function UserProvider({ children }) {
-  const [user, setUser] = useState({
-    username: '',
-    email: '',
-    edition: 0,
-    expiry_date: '',
-    last_organization: '',
-    id: '',
+  const [user, setUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('userDetails');
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   });
 
-  // Function to update user details
-  const setUserDetails = (userDetails) => {
-    setUser((prevUser) => ({ ...prevUser, ...userDetails }));
-  };
-
-  const clearUserDetails = () => {
-    setUser({
-      username: '',
-      email: '',
-      edition: 0,
-      expiry_date: '',
-      last_organization: '',
-      id: '',
-    });
-  };
-
-  // Fetch user details from API on reload
-  useEffect(() => {
-    const fetchUserDetails = async () => {
+  const [organization, setOrganization] = useState(() => {
+    if (typeof window !== 'undefined') {
       try {
-        // Fetch user details from the API
-        // const response = await fetch('/api/user'); // Replace with your actual API
-        const response = await axiosInstance.get('accounts/v1/user/get-user-details/');
-        
-        // const userData = await response.json();
-        const userData = response.data.data
-        console.log("userData00000==>",userData);
-        
-
-        // Update user state with the fetched data
-        setUserDetails({
-          username: userData.username,
-          email: userData.email,
-          edition: userData.edition,
-          expiry_date: userData.expiry_date,
-          last_organization: userData.last_organization,
-          id: userData.id,
-        });
-      } catch (error) {
-        console.error('Error fetching user details:', error);
+        const saved = localStorage.getItem('organizationDetails');
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
       }
-    };
+    }
+    return null;
+  });
 
-    // fetchUserDetails(); // Call the API when the component mounts
+  const [organizationsList, setOrganizationsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Helper to update user details in Context & LocalStorage
+  const setUserDetails = useCallback((details) => {
+    setUser((prev) => {
+      const updated = { ...(prev || {}), ...details };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userDetails', JSON.stringify(updated));
+      }
+      return updated;
+    });
   }, []);
 
+  // Helper to update active organization details in Context & LocalStorage
+  const setOrganizationDetails = useCallback((orgDetails) => {
+    setOrganization(orgDetails);
+    if (typeof window !== 'undefined') {
+      if (orgDetails) {
+        localStorage.setItem('organizationDetails', JSON.stringify(orgDetails));
+      } else {
+        localStorage.removeItem('organizationDetails');
+      }
+    }
+  }, []);
+
+  // Clear all user and organization state (on Logout)
+  const clearUserDetails = useCallback(() => {
+    setUser(null);
+    setOrganization(null);
+    setOrganizationsList([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userDetails');
+      localStorage.removeItem('organizationDetails');
+    }
+  }, []);
+
+  // Centralized sync function to fetch User and Organization details
+  const refreshUserData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch User Details & Organizations list in parallel
+      const [userRes, orgsRes] = await Promise.allSettled([
+        axiosInstance.get('accounts/v1/user/get-user-details/'),
+        axiosInstance.get('dotz/v1/organization/organizations/')
+      ]);
+
+      const userData = userRes.status === 'fulfilled' ? userRes.value?.data?.data : null;
+      const orgs = orgsRes.status === 'fulfilled' ? (orgsRes.value?.data?.data || []) : [];
+
+      if (userData) {
+        setUserDetails(userData);
+      }
+
+      setOrganizationsList(orgs);
+
+      // 2. Resolve Target Organization ID
+      let targetOrgId = userData?.last_organization;
+      if (!targetOrgId && Array.isArray(orgs) && orgs.length > 0) {
+        const firstOrg = orgs[0];
+        targetOrgId = typeof firstOrg === 'object'
+          ? (firstOrg.id || firstOrg.organization_id || firstOrg._id)
+          : firstOrg;
+      }
+
+      // 3. Fetch Organization Details if targetOrgId exists
+      if (targetOrgId) {
+        try {
+          const orgResponse = await axiosInstance.get(`${DotzBaseUrl}/v1/organization/${targetOrgId}/details`);
+          const orgData = orgResponse.data?.data || orgResponse.data;
+          if (orgResponse.data?.status === 1000 || orgResponse.status === 200) {
+            setOrganizationDetails(orgData);
+          }
+        } catch (err) {
+          console.error('Error fetching organization details:', err);
+        }
+      }
+
+      return { userData, orgs, targetOrgId };
+    } catch (error) {
+      console.error('Error refreshing user context:', error);
+      return { userData: null, orgs: [], targetOrgId: null };
+    } finally {
+      setLoading(false);
+    }
+  }, [setUserDetails, setOrganizationDetails]);
+
   return (
-    <UserContext.Provider value={{ user, setUserDetails, clearUserDetails }}>
+    <UserContext.Provider
+      value={{
+        user,
+        organization,
+        organizationDetails: organization, // Alias for backward compatibility
+        organizationsList,
+        loading,
+        setUserDetails,
+        setOrganizationDetails,
+        clearUserDetails,
+        refreshUserData,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );
 }
 
-// Custom hook to use the context
 export const useUser = () => useContext(UserContext);

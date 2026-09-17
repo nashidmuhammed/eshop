@@ -1,81 +1,73 @@
 'use client';
 
-import axiosInstance from "@/utils/axiosInstance";
 import { useEffect, useState } from "react";
-import WelcomePage from "./WelcomePage";
 import { useRouter } from "next/navigation";
-import { DotzBaseUrl } from "@/utils/GlobalVariables";
+import { useUser } from "@/contexts/UserContext";
+import Loader from "@/components/Loader";
 
 const Header = () => {
-    const router = useRouter()
-    // const organization_id = JSON.parse(localStorage.getItem('userDetails')).last_organization;
-    // const [newUser, setNewUser] = useState(false);
-    // let organization_id = null
-
-    const fetchOrganizationDetails = async () => {
-        try {
-          const response = await axiosInstance.get(DotzBaseUrl+'/v1/organization/organizations/'+organization_id);
-          if (response.status === 1000) {
-            console.log("response--==>",response.data);
-            localStorage.setItem('organizationDetails', JSON.stringify(response.data.data));
-          }
-        } catch (error) {
-          console.error('Error fetching organization:', error);
-        }
-      }
+    const router = useRouter();
+    const { refreshUserData } = useUser();
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
 
-        const fetchUserDetails = async () => {
-            try {
-                const response = await axiosInstance.get('accounts/v1/user/get-user-details/');
-                
-                console.log("response.data.length----1111-->", response.data);
-                localStorage.setItem('userDetails', JSON.stringify(response.data.data));
-        
-                const organization_id = response.data.data.last_organization;
-                console.log("organization_id=1=>", organization_id);
-                
-                if (organization_id) {  // Ensure that organization_id exists
-                    console.log("organization_id=2=>", organization_id);
-                    try {
-                        const orgResponse = await axiosInstance.get(`${DotzBaseUrl}/v1/organization/organizations/${organization_id}`);
-                        if (orgResponse.data.status === 1000) {
-                            console.log("response--==>", orgResponse.data);
-                            localStorage.setItem('organizationDetails', JSON.stringify(orgResponse.data.data));
-                            fetchOrganizationDetails();
-                        }
-                    } catch (error) {
-                        console.error('Error fetching organization:', error);
-                    }
-                }
-            } catch (error) {
-                console.error('API request failed:', error);
-            }
-        };
-        const fetchOrganization = async () => {
-            try {
-                const response = await axiosInstance.get('e_shop/v1/organization/organizations/');
-                console.log("response.data.length----00-->",response.data.data.length);
-                if (response.data.data.length === 0) {
-                    // setNewUser(true);
+        const initWorkspace = async () => {
+            if (isMounted) setLoading(true);
+            const { targetOrgId, orgs } = await refreshUserData();
+
+            if (isMounted) {
+                // If user has no organization at all, redirect to create one
+                if (!targetOrgId && Array.isArray(orgs) && orgs.length === 0) {
                     router.push('/admin/welcome');
                 }
-            } catch (error) {
-                console.error('API request failed:', error);
+                setLoading(false);
             }
         };
 
-        fetchUserDetails();
-        fetchOrganization();
-        
-        }, []);
+        initWorkspace();
 
-  return (
-    <div>
-        {/* {newUser && <WelcomePage />} */}
-    </div>
-  )
-}
+        return () => {
+            isMounted = false;
+        };
+    }, [router, refreshUserData]);
 
-export default Header
+    if (loading) {
+        return (
+            <div
+                style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(9, 10, 15, 0.85)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    transition: 'opacity 0.3s ease-in-out',
+                }}
+            >
+                <Loader lite />
+                <p
+                    style={{
+                        marginTop: '1.25rem',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        letterSpacing: '0.05em',
+                        color: '#1BA098',
+                        fontFamily: 'system-ui, sans-serif',
+                    }}
+                >
+                    Setting up workspace...
+                </p>
+            </div>
+        );
+    }
+
+    return null;
+};
+
+export default Header;

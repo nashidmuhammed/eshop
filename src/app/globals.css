@@ -1,9 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 html {
-  scroll-behavior: smooth; /* Enables smooth scrolling */
+  scroll-behavior: smooth;
 }
+
 @layer components {
   .header_top__icon_wrapper {
     @apply bg-gray-200 rounded-md p-[6px] text-[14px] cursor-pointer hover:bg-accent hover:text-white;
@@ -32,56 +34,52 @@ html {
 }
 
 body {
-  background-color: #f3f4f6;
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 .btw {
   display: flex;
   justify-content: space-between;
 }
+
 .fixed-bottom {
   position: fixed;
   bottom: 0;
   width: 50%;
   right: 23%;
-  /* left: 53%;
-  transform: translateX(-50%);
-  display: flex; */
-  /* gap: 10px; */
   background-color: #000;
-  border-radius: 18px 18px 0 0 ;
+  border-radius: 18px 18px 0 0;
 }
-.fixed-bottom-sm{
+
+.fixed-bottom-sm {
   position: fixed;
   z-index: 9999;
   bottom: 0;
   width: 35%;
   right: 33%;
-  /* left: 53%;
-  transform: translateX(-50%);
-  display: flex; */
-  /* gap: 10px; */
   background-color: #000;
-  border-radius: 18px 18px 0 0 ;
+  border-radius: 18px 18px 0 0;
 }
-.list-hover:hover{
+
+.list-hover:hover {
   background: linear-gradient(to right, #003b7209 15%, #003b7228 50%);
   cursor: pointer;
   border-radius: 17px;
 }
 
-.ft-15{
+.ft-15 {
   font-size: 15px !important;
 }
 
-/* ANTd */
+/* ANTd Overrides */
 .editable-row td.ant-table-cell {
-  /* background-color: #04245930; */
-  padding: 5px!important; /* Adjust padding as needed */
+  padding: 5px !important;
 }
+
 .org-logo .ant-upload-list.ant-upload-list-picture-card .ant-upload-list-item-container {
-  width: 175px !important; /* Adjust the width as needed */
-  height: 175px !important; /* Adjust the height as needed */
+  width: 175px !important;
+  height: 175px !important;
 }
 
 .fixed-sider {
@@ -91,62 +89,29 @@ body {
   overflow: auto;
 }
 
-.premium{
+.premium {
   font-size: 10px !important;
-  color: yellow !important;
+  color: #eab308 !important;
 }
 
-
-
-
-/* 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-} */
 .n-width {
-  width: 20rem; /* Default for very small screens (below 400px) */
+  width: 20rem;
 }
 
 @media (min-width: 400px) and (max-width: 520px) {
   .n-width {
-    width: 11.7rem; /* Width for 400px to 520px screens */
+    width: 11.7rem;
   }
 }
 
 @media (min-width: 520px) and (max-width: 768px) {
   .n-width {
-    width: 11.5rem; /* Same width as Tailwind's default or custom */
+    width: 11.5rem;
   }
 }
 
 @media (min-width: 768px) {
   .n-width {
-    width: 13.7rem; /* Optionally increase for larger screens */
+    width: 13.7rem;
   }
 }
