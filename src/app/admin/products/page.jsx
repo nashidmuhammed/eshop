@@ -40,7 +40,7 @@ const ProductList = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const orgId = organization?.id || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('organizationDetails') || '{}')?.id : null);
+  const orgId = organization?.id;
 
   const fetchProducts = useCallback(async () => {
     if (!orgId) return;

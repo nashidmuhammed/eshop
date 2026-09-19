@@ -118,6 +118,19 @@ const CreateProduct = () => {
   // Step 2: Attribute Library & Selected Product Attributes
   // Library: all organization attributes fetched from API
   const [libraryAttributes, setLibraryAttributes] = useState([]);
+  const [attrSearchInputs, setAttrSearchInputs] = useState({});
+  // Attribute Creation Modal State
+  const [isAttrModalOpen, setIsAttrModalOpen] = useState(false);
+  const [attrModalTargetRowIndex, setAttrModalTargetRowIndex] = useState(null);
+  const [isCreatingAttribute, setIsCreatingAttribute] = useState(false);
+  const [attrModalForm] = Form.useForm();
+
+  // Attribute Value Creation Modal State
+  const [isValueModalOpen, setIsValueModalOpen] = useState(false);
+  const [valueModalTargetRowIndex, setValueModalTargetRowIndex] = useState(null);
+  const [isCreatingValue, setIsCreatingValue] = useState(false);
+  const [valueModalForm] = Form.useForm();
+
   // Selected for this product: [{ attribute_id, name, display_type, selected_values: [{ id, value, color_code }] }]
   const [selectedAttributes, setSelectedAttributes] = useState([
     { attribute_id: null, name: 'Color', display_type: 'color', selected_values: [] }
@@ -332,6 +345,138 @@ const CreateProduct = () => {
   // ----------------------------------------------------
   // STEP 2: "Select from Library or Create Inline" Logic
   // ----------------------------------------------------
+  const handleOpenCreateAttrModal = (rowIndex) => {
+    setAttrModalTargetRowIndex(rowIndex);
+    attrModalForm.resetFields();
+    attrModalForm.setFieldsValue({ display_type: 'button' });
+    setIsAttrModalOpen(true);
+  };
+
+  const handleCreateAttributeSubmit = async () => {
+    try {
+      const values = await attrModalForm.validateFields();
+      setIsCreatingAttribute(true);
+
+      const res = await axiosInstance.post(API_ENDPOINTS.attributeCreate(), {
+        organization_id: orgId,
+        name: values.name.trim(),
+        display_type: values.display_type || 'button',
+      });
+
+      const newAttr = res.data?.data || res.data;
+      if (newAttr && newAttr.id) {
+        newAttr.values = newAttr.values || [];
+        setLibraryAttributes((prev) => [...prev, newAttr]);
+
+        // Automatically assign this newly created attribute to the target row
+        if (attrModalTargetRowIndex !== null) {
+          setSelectedAttributes((prev) =>
+            prev.map((item, i) =>
+              i === attrModalTargetRowIndex
+                ? {
+                    attribute_id: newAttr.id,
+                    name: newAttr.name,
+                    display_type: newAttr.display_type || 'button',
+                    selected_values: [],
+                  }
+                : item
+            )
+          );
+        }
+
+        toast.success(`Created attribute "${newAttr.name}"`);
+        setIsAttrModalOpen(false);
+        attrModalForm.resetFields();
+      } else {
+        toast.error('Failed to create attribute');
+      }
+    } catch (err) {
+      console.error('Error creating attribute from modal:', err);
+      if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
+      }
+    } finally {
+      setIsCreatingAttribute(false);
+    }
+  };
+
+  const handleOpenCreateValueModal = (rowIndex) => {
+    const row = selectedAttributes[rowIndex];
+    const libraryAttr = libraryAttributes.find(
+      (a) => (row?.attribute_id && a.id === row.attribute_id) || (row?.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row?.attribute_id || libraryAttr?.id;
+
+    if (!attrId) {
+      toast.error('Please select an Option Name first.');
+      return;
+    }
+
+    setValueModalTargetRowIndex(rowIndex);
+    valueModalForm.resetFields();
+    const isColor = (libraryAttr?.display_type === 'color' || row?.display_type === 'color' || (row?.name && row.name.toLowerCase().includes('color')));
+    valueModalForm.setFieldsValue({
+      color_code: isColor ? '#1BA098' : '',
+      sort_order: (libraryAttr?.values || []).length + 1,
+    });
+    setIsValueModalOpen(true);
+  };
+
+  const handleCreateValueSubmit = async () => {
+    if (valueModalTargetRowIndex === null) return;
+    const row = selectedAttributes[valueModalTargetRowIndex];
+    const libraryAttr = libraryAttributes.find(
+      (a) => (row?.attribute_id && a.id === row.attribute_id) || (row?.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row?.attribute_id || libraryAttr?.id;
+    if (!attrId) return;
+
+    try {
+      const values = await valueModalForm.validateFields();
+      setIsCreatingValue(true);
+
+      const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesCreate(), {
+        attribute_id: attrId,
+        value: values.value.trim(),
+        color_code: values.color_code || null,
+        sort_order: values.sort_order || 0,
+      });
+
+      const match = res.data?.data || res.data;
+      if (match && match.id) {
+        // 1. Update libraryAttributes so this new value exists in state
+        setLibraryAttributes((prev) =>
+          prev.map((a) => (a.id === attrId ? { ...a, values: [...(a.values || []), match] } : a))
+        );
+
+        // 2. Add to selected_values for this row immediately
+        setSelectedAttributes((prev) =>
+          prev.map((item, i) =>
+            i === valueModalTargetRowIndex
+              ? {
+                  ...item,
+                  selected_values: [...(item.selected_values || []).filter((v) => v.id !== match.id), match],
+                }
+              : item
+          )
+        );
+
+        toast.success(`Created value "${match.value}"`);
+        setIsValueModalOpen(false);
+        valueModalForm.resetFields();
+      } else {
+        toast.error('Failed to create option value');
+      }
+    } catch (err) {
+      console.error('Error creating value from modal:', err);
+      if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
+      }
+    } finally {
+      setIsCreatingValue(false);
+    }
+  };
+
   const handleSelectOrCreateAttribute = async (index, nameOrId) => {
     if (!nameOrId) {
       setSelectedAttributes((prev) =>
@@ -340,17 +485,22 @@ const CreateProduct = () => {
       return;
     }
 
+    let cleanNameOrId = nameOrId;
+    if (typeof nameOrId === 'string' && nameOrId.startsWith('CREATE:')) {
+      cleanNameOrId = nameOrId.replace('CREATE:', '').trim();
+    }
+
     let attr = libraryAttributes.find(
-      (a) => a.id === nameOrId || a.name?.toLowerCase() === nameOrId.trim().toLowerCase()
+      (a) => a.id === cleanNameOrId || a.name?.toLowerCase() === cleanNameOrId.toLowerCase()
     );
 
     if (!attr) {
       // Attribute does not exist in library -> Create it inline in backend
       try {
-        const isColor = nameOrId.toLowerCase().includes('color') || nameOrId.toLowerCase().includes('colour');
+        const isColor = cleanNameOrId.toLowerCase().includes('color') || cleanNameOrId.toLowerCase().includes('colour');
         const res = await axiosInstance.post(API_ENDPOINTS.attributeCreate(), {
           organization_id: orgId,
-          name: nameOrId.trim(),
+          name: cleanNameOrId,
           display_type: isColor ? 'color' : 'button',
         });
         attr = res.data?.data || res.data;
@@ -936,7 +1086,7 @@ const CreateProduct = () => {
                         <Select
                           showSearch
                           size="large"
-                          placeholder="e.g. Color, Size, Material"
+                          placeholder="Select option (e.g. Color, Size)"
                           className="w-full"
                           value={libraryAttr?.id || row.attribute_id || undefined}
                           onChange={(val) => handleSelectOrCreateAttribute(index, val)}
@@ -951,8 +1101,16 @@ const CreateProduct = () => {
                             <>
                               {menu}
                               <Divider style={{ margin: '8px 0' }} />
-                              <div className="px-3 py-1 text-xs text-slate-500 bg-slate-50">
-                                💡 Tip: Type any new name and press enter to create on-the-fly
+                              <div className="p-1">
+                                <Button
+                                  type="text"
+                                  block
+                                  icon={<PlusOutlined />}
+                                  className="text-teal-600 font-medium hover:bg-teal-50 flex items-center justify-center gap-1.5"
+                                  onClick={() => handleOpenCreateAttrModal(index)}
+                                >
+                                  Create New Attribute
+                                </Button>
                               </div>
                             </>
                           )}
@@ -993,6 +1151,23 @@ const CreateProduct = () => {
                           filterOption={(input, option) =>
                             (option?.value || '').toLowerCase().includes(input.toLowerCase())
                           }
+                          dropdownRender={(menu) => (
+                            <>
+                              {menu}
+                              <Divider style={{ margin: '8px 0' }} />
+                              <div className="p-1">
+                                <Button
+                                  type="text"
+                                  block
+                                  icon={<PlusOutlined />}
+                                  className="text-teal-600 font-medium hover:bg-teal-50 flex items-center justify-center gap-1.5"
+                                  onClick={() => handleOpenCreateValueModal(index)}
+                                >
+                                  Create New Value for {libraryAttr?.name || row.name || 'Attribute'}
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         />
                       </Col>
 
@@ -1031,43 +1206,6 @@ const CreateProduct = () => {
                             <PlusOutlined style={{ fontSize: 9 }} />
                           </Tag>
                         ))}
-                      </div>
-                    )}
-
-                    {/* Dedicated Custom Color Creation Bar (when color attribute) */}
-                    {(libraryAttr?.display_type === 'color' || row.display_type === 'color' || (row.name && row.name.toLowerCase().includes('color'))) && (
-                      <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center gap-2 flex-wrap bg-white p-2.5 rounded border border-slate-200">
-                        <BgColorsOutlined className="text-teal-600" />
-                        <Text type="secondary" className="text-xs font-medium">Add New Color with Hex Picker:</Text>
-                        <Input
-                          size="small"
-                          placeholder="e.g. Mustard Yellow"
-                          className="w-44"
-                          value={customColorName[index] || ''}
-                          onChange={(e) => setCustomColorName((prev) => ({ ...prev, [index]: e.target.value }))}
-                          onPressEnter={() => {
-                            handleCreateCustomColorValue(index, customColorName[index], customColorHex[index] || '#EAB308');
-                            setCustomColorName((prev) => ({ ...prev, [index]: '' }));
-                          }}
-                        />
-                        <input
-                          type="color"
-                          className="w-7 h-7 p-0 border border-slate-300 rounded cursor-pointer"
-                          value={customColorHex[index] || '#EAB308'}
-                          onChange={(e) => setCustomColorHex((prev) => ({ ...prev, [index]: e.target.value }))}
-                        />
-                        <Button
-                          size="small"
-                          type="primary"
-                          icon={<PlusOutlined />}
-                          style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
-                          onClick={() => {
-                            handleCreateCustomColorValue(index, customColorName[index], customColorHex[index] || '#EAB308');
-                            setCustomColorName((prev) => ({ ...prev, [index]: '' }));
-                          }}
-                        >
-                          Add Color Value
-                        </Button>
                       </div>
                     )}
                   </Card>
@@ -1340,6 +1478,165 @@ const CreateProduct = () => {
           <Button type="primary" htmlType="submit" block style={{ backgroundColor: '#1BA098' }}>
             Create Brand
           </Button>
+        </Form>
+      </Modal>
+
+      {/* Create New Attribute Modal */}
+      <Modal
+        title="Create New Attribute"
+        open={isAttrModalOpen}
+        onCancel={() => {
+          setIsAttrModalOpen(false);
+          attrModalForm.resetFields();
+        }}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <Form
+          form={attrModalForm}
+          layout="vertical"
+          onFinish={handleCreateAttributeSubmit}
+          initialValues={{ display_type: 'button' }}
+          className="mt-4"
+        >
+          <Form.Item
+            name="name"
+            label="Attribute Name"
+            rules={[{ required: true, message: 'Please enter attribute name (e.g. Color, Size, Material)' }]}
+          >
+            <Input placeholder="e.g. Color, Size, Material, Storage" size="large" autoFocus />
+          </Form.Item>
+
+          <Form.Item
+            name="display_type"
+            label="Display Style"
+            rules={[{ required: true, message: 'Please select display style' }]}
+            tooltip="Controls how options are rendered to customers on storefront"
+          >
+            <Select size="large">
+              <Option value="button">Button / Pill (Default)</Option>
+              <Option value="color">Color Swatch</Option>
+              <Option value="select">Dropdown Menu</Option>
+            </Select>
+          </Form.Item>
+
+          <Divider style={{ margin: '16px 0' }} />
+
+          <Flex justify="end" gap="middle">
+            <Button
+              onClick={() => {
+                setIsAttrModalOpen(false);
+                attrModalForm.resetFields();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isCreatingAttribute}
+              style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+            >
+              Create Attribute
+            </Button>
+          </Flex>
+        </Form>
+      </Modal>
+
+      {/* Create New Attribute Value Modal */}
+      <Modal
+        title={(() => {
+          if (valueModalTargetRowIndex === null) return 'Create New Option Value';
+          const row = selectedAttributes[valueModalTargetRowIndex];
+          return `Create New Value for ${row?.name || 'Attribute'}`;
+        })()}
+        open={isValueModalOpen}
+        onCancel={() => {
+          setIsValueModalOpen(false);
+          valueModalForm.resetFields();
+        }}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <Form
+          form={valueModalForm}
+          layout="vertical"
+          onFinish={handleCreateValueSubmit}
+          initialValues={{ sort_order: 1, color_code: '#1BA098' }}
+          className="mt-4"
+        >
+          <Form.Item
+            name="value"
+            label="Option Value"
+            rules={[{ required: true, message: 'Please enter option value (e.g. Red, XL, 64GB)' }]}
+          >
+            <Input placeholder="e.g. Red, XL, 64GB, Cotton" size="large" autoFocus />
+          </Form.Item>
+
+          {(() => {
+            const targetRow = valueModalTargetRowIndex !== null ? selectedAttributes[valueModalTargetRowIndex] : null;
+            const targetLibraryAttr = targetRow ? libraryAttributes.find(
+              (a) => (targetRow.attribute_id && a.id === targetRow.attribute_id) || (targetRow.name && a.name?.toLowerCase() === targetRow.name?.toLowerCase())
+            ) : null;
+            const isColorAttr = (targetRow?.display_type === 'color' || targetLibraryAttr?.display_type === 'color' || (targetRow?.name && targetRow.name.toLowerCase().includes('color')));
+
+            return (
+              <Row gutter={16}>
+                {isColorAttr && (
+                  <Col span={14}>
+                    <Form.Item
+                      name="color_code"
+                      label="Color Hex Code"
+                      tooltip="Used for Color Swatches on Storefront (e.g. #FF0000)"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Input placeholder="e.g. #FF0000 or #1BA098" size="large" />
+                        <Form.Item name="color_code" noStyle>
+                          <input
+                            type="color"
+                            className="w-10 h-10 p-0.5 border border-slate-300 rounded cursor-pointer shrink-0"
+                            onChange={(e) => valueModalForm.setFieldsValue({ color_code: e.target.value })}
+                          />
+                        </Form.Item>
+                      </div>
+                    </Form.Item>
+                  </Col>
+                )}
+                <Col span={isColorAttr ? 10 : 24}>
+                  <Form.Item
+                    name="sort_order"
+                    label="Sort Order"
+                    tooltip="Sequence order for listing option values"
+                  >
+                    <InputNumber min={0} className="w-full" size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            );
+          })()}
+
+          <Divider style={{ margin: '16px 0' }} />
+
+          <Flex justify="end" gap="middle">
+            <Button
+              onClick={() => {
+                setIsValueModalOpen(false);
+                valueModalForm.resetFields();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isCreatingValue}
+              style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+            >
+              Create Value
+            </Button>
+          </Flex>
         </Form>
       </Modal>
     </div>

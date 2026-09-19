@@ -13,11 +13,14 @@ import useAuth from "@/hooks/useAuth";
 import Loader from "@/components/Loader";
 import toast from "react-hot-toast";
 import { WishlistProvider } from "@/hooks/useWishlist";
+import { useUser } from "@/contexts/UserContext";
+import WelcomePage from "@/app/admin/welcome/page";
 
 const { Content } = Layout;
 
 const LayoutProvider = ({ children }) => {
     const { accessToken } = useAuth();
+    const { organization, loading: userLoading } = useUser();
     const router = useRouter();
     const [collapsed, setCollapsed] = useState(false);
     const [loader, setLoader] = useState(true);
@@ -52,7 +55,7 @@ const LayoutProvider = ({ children }) => {
     return (
         <WishlistProvider>
             <LayoutContextProvider>
-                {loader ? (
+                {loader || (isAdminLayout && userLoading) ? (
                     <Loader />
                 ) : isAdminLayout ? (
                     <ConfigProvider
@@ -68,18 +71,24 @@ const LayoutProvider = ({ children }) => {
                             },
                         }}
                     >
-                        <Layout style={{ minHeight: '100vh', background: '#f8fafc', marginInlineStart: collapsedWidth === 0 ? null : collapsed ? '80px' : '200px' }}>
-                            <SideBar collapsed={collapsed} setCollapsed={setCollapsed} collapsedWidth={collapsedWidth} />
-                            <Layout style={{ background: '#f8fafc', minHeight: '100vh' }}>
-                                <Headers collapsed={collapsed} setCollapsed={setCollapsed} collapsedWidth={collapsedWidth} />
-                                <Content style={{ margin: '0', padding: '0', minHeight: 'calc(100vh - 64px)', background: '#f8fafc' }}>
-                                    <div style={{ minHeight: '100%', background: '#f8fafc' }}>
-                                        {children}
-                                    </div>
-                                </Content>
-                                {notFooterLayout && <Footer />}
+                        {!organization ? (
+                            <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <WelcomePage />
+                            </div>
+                        ) : (
+                            <Layout style={{ minHeight: '100vh', background: '#f8fafc', marginInlineStart: collapsedWidth === 0 ? null : collapsed ? '80px' : '200px' }}>
+                                <SideBar collapsed={collapsed} setCollapsed={setCollapsed} collapsedWidth={collapsedWidth} />
+                                <Layout style={{ background: '#f8fafc', minHeight: '100vh' }}>
+                                    <Headers collapsed={collapsed} setCollapsed={setCollapsed} collapsedWidth={collapsedWidth} />
+                                    <Content style={{ margin: '0', padding: '0', minHeight: 'calc(100vh - 64px)', background: '#f8fafc' }}>
+                                        <div style={{ minHeight: '100%', background: '#f8fafc' }}>
+                                            {children}
+                                        </div>
+                                    </Content>
+                                    {notFooterLayout && <Footer />}
+                                </Layout>
                             </Layout>
-                        </Layout>
+                        )}
                     </ConfigProvider>
                 ) : (
                     children

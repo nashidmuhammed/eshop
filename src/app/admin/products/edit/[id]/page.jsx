@@ -102,14 +102,10 @@ const EditProductPage = () => {
   const [categoryForm] = Form.useForm();
   const [brandForm] = Form.useForm();
   const [newVariantForm] = Form.useForm();
-  const [newAttrForm] = Form.useForm();
+  const [attrModalForm] = Form.useForm();
+  const [valueModalForm] = Form.useForm();
   const [editAttrForm] = Form.useForm();
   const [editValForm] = Form.useForm();
-
-  const [editingAttr, setEditingAttr] = useState(null);
-  const [editAttrModalOpen, setEditAttrModalOpen] = useState(false);
-  const [editingVal, setEditingVal] = useState(null);
-  const [editValModalOpen, setEditValModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(true);
@@ -128,10 +124,31 @@ const EditProductPage = () => {
   const [variants, setVariants] = useState([]);
   const [baseFileList, setBaseFileList] = useState([]);
 
+  // Org Attributes Library & Selected Product Attributes Matrix
+  const [orgAttributesLibrary, setOrgAttributesLibrary] = useState([]);
+  const [selectedAttributes, setSelectedAttributes] = useState([]);
+
+  const validAttrsForPreview = selectedAttributes.filter((a) => a.attribute_id && a.selected_values?.length > 0);
+  const totalCombinationsCount = validAttrsForPreview.reduce((acc, a) => acc * (a.selected_values.length || 1), validAttrsForPreview.length ? 1 : 0);
+
+  // Attribute & Value Modals
+  const [isAttrModalOpen, setIsAttrModalOpen] = useState(false);
+  const [attrModalTargetRowIndex, setAttrModalTargetRowIndex] = useState(null);
+  const [isCreatingAttribute, setIsCreatingAttribute] = useState(false);
+
+  const [isValueModalOpen, setIsValueModalOpen] = useState(false);
+  const [valueModalTargetRowIndex, setValueModalTargetRowIndex] = useState(null);
+  const [isCreatingValue, setIsCreatingValue] = useState(false);
+
+  // Editing attribute / value headers
+  const [editingAttr, setEditingAttr] = useState(null);
+  const [editAttrModalOpen, setEditAttrModalOpen] = useState(false);
+  const [editingVal, setEditingVal] = useState(null);
+  const [editValModalOpen, setEditValModalOpen] = useState(false);
+
   // Modals / Drawer States
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [brandModalOpen, setBrandModalOpen] = useState(false);
-  const [newAttrModalOpen, setNewAttrModalOpen] = useState(false);
   const [newVariantModalOpen, setNewVariantModalOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -156,6 +173,7 @@ const EditProductPage = () => {
           axiosInstance.get(API_ENDPOINTS.brands(orgId)),
           axiosInstance.get(API_ENDPOINTS.units(orgId)),
           axiosInstance.get(API_ENDPOINTS.taxes(orgId)),
+          axiosInstance.post(API_ENDPOINTS.attributesList(), { organization_id: orgId }).catch(() => ({ data: { data: [] } })),
         ]),
         axiosInstance.post(API_ENDPOINTS.productDetails(), {
           organization_id: orgId,
@@ -164,19 +182,97 @@ const EditProductPage = () => {
       ]);
 
       // Handle Master Tables
-      const [resCat, resBrand, resUnit, resTax] = resMasters;
+      const [resCat, resBrand, resUnit, resTax, resAttrs] = resMasters;
       if (resCat.data?.status_code === 1000) setCategories(resCat.data.data || []);
       if (resBrand.data?.status_code === 1000) setBrands(resBrand.data.data || []);
       if (resUnit.data?.status_code === 1000) setUnits(resUnit.data.data || []);
       if (resTax.data?.status_code === 1000) setTaxes(resTax.data.data || []);
+      if (resAttrs.data?.status === 1000 || resAttrs.data?.data) {
+        setOrgAttributesLibrary(resAttrs.data.data || []);
+      }
 
       // Handle Composite Details
       if (resDetails.data?.status === 1000 || resDetails.data?.status_code === 1000) {
         const { product, attributes: attrs, variants: vars } = resDetails.data.data || {};
 
         setProductData(product || null);
-        setAttributes(attrs || []);
         setVariants(vars || []);
+
+        // Collect all used option values and attribute identifiers for this product
+        const usedValueNames = new Set();
+        const usedValueIds = new Set();
+        const usedAttributeNames = new Set();
+        const usedAttributeIds = new Set();
+
+        if (product) {
+          if (product.variant_name) {
+            usedAttributeNames.add(product.variant_name.trim().toLowerCase());
+          }
+          if (Array.isArray(product.variants)) {
+            product.variants.forEach((vStr) => {
+              if (typeof vStr === 'string' && vStr.trim()) {
+                usedValueNames.add(vStr.trim().toLowerCase());
+              }
+            });
+          }
+        }
+
+        (vars || []).forEach((v) => {
+          if (v.variant_title && typeof v.variant_title === 'string') {
+            v.variant_title.split('/').forEach((part) => {
+              if (part.trim()) usedValueNames.add(part.trim().toLowerCase());
+            });
+          }
+          (v.attribute_values || []).forEach((av) => {
+            const attrId = av.attribute?.id || av.attribute_id;
+            const attrName = av.attribute?.name;
+            const valId = av.attribute_value?.id || av.id;
+            const valName = av.attribute_value?.value || av.value;
+
+            if (attrId) usedAttributeIds.add(attrId);
+            if (attrName) usedAttributeNames.add(attrName.trim().toLowerCase());
+            if (valId) usedValueIds.add(valId);
+            if (valName) usedValueNames.add(valName.trim().toLowerCase());
+          });
+        });
+
+        // Filter attributes and their option values to only what belongs to this product
+        let productAttrs = [];
+        if (usedValueNames.size > 0 || usedValueIds.size > 0 || usedAttributeIds.size > 0 || usedAttributeNames.size > 0) {
+          (attrs || []).forEach((attr) => {
+            const attrNameLower = (attr.name || '').trim().toLowerCase();
+            const isAttrMatch =
+              usedAttributeIds.has(attr.id) ||
+              usedAttributeNames.has(attrNameLower) ||
+              (attrNameLower === 'colour' && usedAttributeNames.has('color')) ||
+              (attrNameLower === 'color' && usedAttributeNames.has('colour'));
+
+            const matchingValues = (attr.values || []).filter((valObj) => {
+              const valLower = (valObj.value || '').trim().toLowerCase();
+              return usedValueIds.has(valObj.id) || usedValueNames.has(valLower);
+            });
+
+            if (isAttrMatch || matchingValues.length > 0) {
+              productAttrs.push({
+                ...attr,
+                values: matchingValues.length > 0 ? matchingValues : attr.values || [],
+              });
+            }
+          });
+        } else {
+          // If no variants exist yet, use attrs provided by backend or empty array
+          productAttrs = attrs || [];
+        }
+
+        setAttributes(productAttrs);
+        setSelectedAttributes(
+          productAttrs.map((pa) => ({
+            attribute_id: pa.id,
+            name: pa.name,
+            display_type: pa.display_type || 'button',
+            selected_values: pa.values || [],
+          }))
+        );
 
         if (product) {
           form.setFieldsValue({
@@ -310,154 +406,271 @@ const EditProductPage = () => {
     }
   };
 
-  // Create New Attribute
-  const handleCreateAttribute = async (values) => {
+  // -------------------------------------------------------------
+  // ATTRIBUTE & VALUE MATRIX HANDLERS (MATCHING CREATE PAGE LOGIC)
+  // -------------------------------------------------------------
+
+  const handleOpenCreateAttrModal = (rowIndex) => {
+    setAttrModalTargetRowIndex(rowIndex);
+    attrModalForm.resetFields();
+    setIsAttrModalOpen(true);
+  };
+
+  const handleCreateAttrSubmit = async (values) => {
     try {
-      setIsSubmitting(true);
+      setIsCreatingAttribute(true);
+      const isColor = values.name.toLowerCase().includes('color') || values.name.toLowerCase().includes('colour');
       const res = await axiosInstance.post(API_ENDPOINTS.attributeCreate(), {
         organization_id: orgId,
         name: values.name.trim(),
-        display_type: values.display_type || 'button',
+        display_type: values.display_type || (isColor ? 'color' : 'button'),
       });
 
-      if (res.data?.status === 1000 || res.data?.status_code === 1000 || res.status === 201) {
-        toast.success(`Attribute "${values.name}" created!`);
-        setNewAttrModalOpen(false);
-        newAttrForm.resetFields();
-        fetchProductCompositeDetails();
+      const match = res.data?.data || res.data;
+      if (match && match.id) {
+        match.values = match.values || [];
+        setOrgAttributesLibrary((prev) => [...prev, match]);
+        toast.success(`Created attribute "${match.name}" in organization library`);
+        setIsAttrModalOpen(false);
+        attrModalForm.resetFields();
+
+        if (attrModalTargetRowIndex !== null) {
+          setSelectedAttributes((prev) =>
+            prev.map((item, i) =>
+              i === attrModalTargetRowIndex
+                ? {
+                    attribute_id: match.id,
+                    name: match.name,
+                    display_type: match.display_type || 'button',
+                    selected_values: [],
+                  }
+                : item
+            )
+          );
+        }
       } else {
-        toast.error(res.data?.message || 'Failed to create attribute');
+        toast.error('Failed to create attribute');
       }
     } catch (err) {
-      console.error('Attribute creation error:', err);
-      toast.error('Error creating attribute');
+      console.error('Error creating attribute from modal:', err);
+      toast.error('Failed to create attribute');
     } finally {
-      setIsSubmitting(false);
+      setIsCreatingAttribute(false);
     }
   };
 
-  // Update Attribute
-  const handleUpdateAttributeSubmit = async (values) => {
-    if (!editingAttr) return;
-    try {
-      setIsSubmitting(true);
-      const res = await axiosInstance.post(API_ENDPOINTS.attributeUpdate(), {
-        attribute_id: editingAttr.id,
-        name: values.name?.trim(),
-        display_type: values.display_type,
-      });
-      if (res.data?.status === 1000 || res.data?.status_code === 1000) {
-        toast.success('Attribute updated successfully!');
-        setEditAttrModalOpen(false);
-        setEditingAttr(null);
-        fetchProductCompositeDetails();
-      } else {
-        toast.error(res.data?.message || 'Failed to update attribute');
-      }
-    } catch (err) {
-      console.error('Error updating attribute:', err);
-      toast.error('Failed to update attribute');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleOpenCreateValueModal = (rowIndex) => {
+    const row = selectedAttributes[rowIndex];
+    const libraryAttr = orgAttributesLibrary.find(
+      (a) => (row?.attribute_id && a.id === row.attribute_id) || (row?.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row?.attribute_id || libraryAttr?.id;
 
-  // Delete Attribute
-  const handleDeleteAttribute = async (attributeId) => {
-    try {
-      const res = await axiosInstance.post(API_ENDPOINTS.attributeDelete(), {
-        attribute_id: attributeId,
-      });
-      if (res.data?.status === 1000 || res.data?.status_code === 1000) {
-        toast.success('Attribute deleted successfully');
-        setAttributes((prev) => prev.filter((a) => a.id !== attributeId));
-      } else {
-        toast.error(res.data?.message || 'Failed to delete attribute');
-      }
-    } catch (err) {
-      console.error('Error deleting attribute:', err);
-      toast.error('Failed to delete attribute');
-    }
-  };
-
-  // Update Attribute Value
-  const handleUpdateAttributeValueSubmit = async (values) => {
-    if (!editingVal) return;
-    try {
-      setIsSubmitting(true);
-      const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesUpdate(), {
-        value_id: editingVal.id,
-        value: values.value?.trim(),
-        color_code: values.color_code || null,
-      });
-      if (res.data?.status === 1000 || res.data?.status_code === 1000) {
-        toast.success('Option value updated successfully!');
-        setEditValModalOpen(false);
-        setEditingVal(null);
-        fetchProductCompositeDetails();
-      } else {
-        toast.error(res.data?.message || 'Failed to update option value');
-      }
-    } catch (err) {
-      console.error('Error updating option value:', err);
-      toast.error('Failed to update option value');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Delete Attribute Value
-  const handleDeleteAttributeValue = async (valueId, attributeId) => {
-    try {
-      const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesDelete(), {
-        value_id: valueId,
-      });
-      if (res.data?.status === 1000 || res.data?.status_code === 1000) {
-        toast.success('Option value deleted');
-        setAttributes((prev) =>
-          prev.map((a) => (a.id === attributeId ? { ...a, values: (a.values || []).filter((v) => v.id !== valueId) } : a))
-        );
-      } else {
-        toast.error(res.data?.message || 'Failed to delete option value');
-      }
-    } catch (err) {
-      console.error('Error deleting option value:', err);
-      toast.error('Failed to delete value');
-    }
-  };
-
-  // Add Attribute Value Inline
-  const handleAddAttributeValue = async (attributeId) => {
-    const val = newValInput[attributeId]?.trim();
-    if (!val) {
-      toast.error('Please enter a value');
+    if (!attrId) {
+      toast.error('Please select an Option Name first.');
       return;
     }
 
-    const attr = attributes.find((a) => a.id === attributeId);
-    const isColor = attr?.display_type === 'color' || (attr?.name && attr.name.toLowerCase().includes('color'));
-    const chosenColor = newValColor[attributeId] || (isColor ? detectColorHex(val) : null);
+    setValueModalTargetRowIndex(rowIndex);
+    valueModalForm.resetFields();
+    const isColor = (libraryAttr?.display_type === 'color' || row?.display_type === 'color' || (row?.name && row.name.toLowerCase().includes('color')));
+    valueModalForm.setFieldsValue({
+      color_code: isColor ? '#1BA098' : '',
+      sort_order: (libraryAttr?.values || []).length + 1,
+    });
+    setIsValueModalOpen(true);
+  };
+
+  const handleCreateValueSubmit = async () => {
+    if (valueModalTargetRowIndex === null) return;
+    const row = selectedAttributes[valueModalTargetRowIndex];
+    const libraryAttr = orgAttributesLibrary.find(
+      (a) => (row?.attribute_id && a.id === row.attribute_id) || (row?.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row?.attribute_id || libraryAttr?.id;
+    if (!attrId) return;
 
     try {
+      const values = await valueModalForm.validateFields();
+      setIsCreatingValue(true);
+
       const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesCreate(), {
-        attribute_id: attributeId,
-        value: val,
-        color_code: chosenColor,
-        sort_order: (attr?.values || []).length + 1,
+        attribute_id: attrId,
+        value: values.value.trim(),
+        color_code: values.color_code || null,
+        sort_order: values.sort_order || 0,
       });
 
-      if (res.data?.status === 1000 || res.data?.status_code === 1000 || res.status === 201) {
-        toast.success(`Added option "${val}"!`);
-        setNewValInput((prev) => ({ ...prev, [attributeId]: '' }));
-        setNewValColor((prev) => ({ ...prev, [attributeId]: '#000000' }));
-        fetchProductCompositeDetails();
+      const match = res.data?.data || res.data;
+      if (match && match.id) {
+        setOrgAttributesLibrary((prev) =>
+          prev.map((a) => (a.id === attrId ? { ...a, values: [...(a.values || []), match] } : a))
+        );
+
+        setSelectedAttributes((prev) =>
+          prev.map((item, i) =>
+            i === valueModalTargetRowIndex
+              ? {
+                  ...item,
+                  selected_values: [...(item.selected_values || []).filter((v) => v.id !== match.id), match],
+                }
+              : item
+          )
+        );
+
+        toast.success(`Created value "${match.value}"`);
+        setIsValueModalOpen(false);
+        valueModalForm.resetFields();
       } else {
-        toast.error(res.data?.message || 'Failed to add attribute value');
+        toast.error('Failed to create option value');
       }
     } catch (err) {
-      console.error('Error adding attribute value:', err);
-      toast.error('Error adding value');
+      console.error('Error creating value from modal:', err);
+      toast.error('Failed to create option value');
+    } finally {
+      setIsCreatingValue(false);
     }
+  };
+
+  const handleSelectOrCreateAttribute = async (index, nameOrId) => {
+    if (!nameOrId) {
+      setSelectedAttributes((prev) =>
+        prev.map((item, i) => (i === index ? { attribute_id: null, name: '', display_type: 'button', selected_values: [] } : item))
+      );
+      return;
+    }
+
+    let cleanNameOrId = nameOrId;
+    if (typeof nameOrId === 'string' && nameOrId.startsWith('CREATE:')) {
+      cleanNameOrId = nameOrId.replace('CREATE:', '').trim();
+    }
+
+    let attr = orgAttributesLibrary.find(
+      (a) => a.id === cleanNameOrId || a.name?.toLowerCase() === cleanNameOrId.toLowerCase()
+    );
+
+    if (!attr) {
+      try {
+        const isColor = cleanNameOrId.toLowerCase().includes('color') || cleanNameOrId.toLowerCase().includes('colour');
+        const res = await axiosInstance.post(API_ENDPOINTS.attributeCreate(), {
+          organization_id: orgId,
+          name: cleanNameOrId,
+          display_type: isColor ? 'color' : 'button',
+        });
+        attr = res.data?.data || res.data;
+        if (attr && attr.id) {
+          attr.values = attr.values || [];
+          setOrgAttributesLibrary((prev) => [...prev, attr]);
+          toast.success(`Created attribute "${attr.name}" in organization library`);
+        } else {
+          toast.error('Failed to create attribute');
+          return;
+        }
+      } catch (err) {
+        console.error('Error creating attribute inline:', err);
+        toast.error('Failed to create new attribute');
+        return;
+      }
+    }
+
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              attribute_id: attr.id,
+              name: attr.name,
+              display_type: attr.display_type || 'button',
+              selected_values: [],
+            }
+          : item
+      )
+    );
+  };
+
+  const handleSelectOrCreateValues = async (index, rawValues) => {
+    const row = selectedAttributes[index];
+    const libraryAttr = orgAttributesLibrary.find(
+      (a) => (row.attribute_id && a.id === row.attribute_id) || (row.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+    );
+    const attrId = row.attribute_id || libraryAttr?.id;
+    if (!attrId) return;
+
+    const existingLibraryValues = libraryAttr?.values || [];
+    const updatedSelected = [];
+
+    for (const valName of rawValues) {
+      let match = existingLibraryValues.find(
+        (v) => v.id === valName || v.value?.toLowerCase() === valName.trim().toLowerCase()
+      );
+
+      if (!match) {
+        const isColorType = (row.display_type || libraryAttr?.display_type) === 'color';
+        const initialHex = isColorType ? detectColorHex(valName) : null;
+        try {
+          const res = await axiosInstance.post(API_ENDPOINTS.attributeValuesCreate(), {
+            attribute_id: attrId,
+            value: valName.trim(),
+            color_code: initialHex,
+            sort_order: existingLibraryValues.length + 1,
+          });
+          match = res.data?.data || res.data;
+          if (match && match.id) {
+            match.color_code = match.color_code || initialHex;
+            existingLibraryValues.push(match);
+            setOrgAttributesLibrary((prev) =>
+              prev.map((a) => (a.id === attrId ? { ...a, values: [...(a.values || []), match] } : a))
+            );
+          }
+        } catch (err) {
+          console.error('Error creating value inline:', err);
+          toast.error(`Failed to create value "${valName}"`);
+          continue;
+        }
+      }
+
+      if (match) {
+        updatedSelected.push(match);
+      }
+    }
+
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              attribute_id: attrId,
+              name: item.name || libraryAttr?.name,
+              selected_values: updatedSelected,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleQuickAddLibraryValue = (index, valueObj) => {
+    const current = selectedAttributes[index]?.selected_values || [];
+    if (current.some((v) => v.id === valueObj.id)) return;
+    setSelectedAttributes((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              selected_values: [...current, valueObj],
+            }
+          : item
+      )
+    );
+  };
+
+  const handleAddAttributeRow = () => {
+    setSelectedAttributes((prev) => [
+      ...prev,
+      { attribute_id: null, name: '', display_type: 'button', selected_values: [] },
+    ]);
+  };
+
+  const handleRemoveAttributeRow = (index) => {
+    setSelectedAttributes((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Quick Table: Inline cell change
@@ -1079,7 +1292,7 @@ const EditProductPage = () => {
       label: (
         <span className="flex items-center gap-2 font-medium text-sm">
           <TagsOutlined />
-          Attributes & Values ({attributes.length})
+          Attributes & Values ({selectedAttributes.length})
         </span>
       ),
       children: (
@@ -1092,197 +1305,195 @@ const EditProductPage = () => {
             <Flex justify="space-between" align="center" wrap="wrap" gap="small" className="!mb-4">
               <div>
                 <Title level={5} style={{ margin: 0 }}>
-                  Organization Attributes Library
+                  Product Attributes & Option Values
                 </Title>
                 <Text type="secondary" className="!text-xs">
-                  Attributes defined here can be assigned to product variants (e.g. Color, Size, Material)
+                  Select existing attributes from your organization library or type new options to create them inline.
                 </Text>
               </div>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
-                onClick={() => setNewAttrModalOpen(true)}
-              >
-                Create New Attribute
-              </Button>
+              {totalCombinationsCount > 0 && (
+                <Tag color="cyan" className="!text-xs !font-semibold !px-3 !py-1 !rounded-full">
+                  Matrix: {validAttrsForPreview.length} Attributes ➔ {totalCombinationsCount} Variant SKUs
+                </Tag>
+              )}
             </Flex>
 
-            {attributes.length === 0 ? (
+            {selectedAttributes.length === 0 ? (
               <div className="text-center py-10 bg-slate-50 rounded-lg border border-dashed border-slate-300">
                 <TagsOutlined style={{ fontSize: 36, color: '#94a3b8' }} />
-                <Title level={5} className="!mt-2 !mb-1 !text-slate-700">No Attributes Configured</Title>
+                <Title level={5} className="!mt-2 !mb-1 !text-slate-700">No Product Attributes Configured</Title>
                 <Text type="secondary" className="!text-xs !block !mb-4">
-                  Create attributes like Size or Color to start generating multi-SKU variants.
+                  Add attributes like Size or Color to this product to start generating multi-SKU variants.
                 </Text>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
                   style={{ backgroundColor: '#1BA098' }}
-                  onClick={() => setNewAttrModalOpen(true)}
+                  onClick={handleAddAttributeRow}
                 >
-                  Create First Attribute
+                  Add Option
                 </Button>
               </div>
             ) : (
-              <Row gutter={[20, 20]}>
-                {attributes.map((attr) => {
-                  const isColorAttr = attr.display_type === 'color' || attr.name?.toLowerCase().includes('color');
+              <div className="space-y-4">
+                {selectedAttributes.map((row, index) => {
+                  const libraryAttr = orgAttributesLibrary.find(
+                    (a) => (row.attribute_id && a.id === row.attribute_id) || (row.name && a.name?.toLowerCase() === row.name?.toLowerCase())
+                  );
+                  const unselectedLibraryValues = (libraryAttr?.values || []).filter(
+                    (lv) => !(row.selected_values || []).some((sv) => sv.id === lv.id || sv.value?.toLowerCase() === lv.value?.toLowerCase())
+                  );
+
                   return (
-                    <Col xs={24} md={12} key={attr.id}>
-                      <Card
-                        size="small"
-                        className="!border !border-slate-200 hover:!border-teal-500/40 !bg-white hover:!shadow-md !transition-all !rounded-xl overflow-hidden"
-                        title={
-                          <Flex justify="space-between" align="center" className="py-1">
-                            <Space size="middle">
-                              <Text strong className="!text-slate-900 !text-base">{attr.name}</Text>
-                              <Tag color={isColorAttr ? 'magenta' : 'blue'} className="!text-[11px] !capitalize !rounded-full !px-2.5 !font-medium">
-                                {attr.display_type || 'button'}
-                              </Tag>
-                            </Space>
-                            <Space size="small">
-                              <Tag color="cyan" className="!text-xs !font-semibold !rounded-full !mr-1">
-                                {(attr.values || []).length} Options
-                              </Tag>
-                              <Tooltip title="Edit Attribute Header">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<EditOutlined className="!text-slate-500 hover:!text-teal-600 !text-sm" />}
-                                  onClick={() => {
-                                    setEditingAttr(attr);
-                                    editAttrForm.setFieldsValue({
-                                      name: attr.name,
-                                      display_type: attr.display_type || 'button',
-                                    });
-                                    setEditAttrModalOpen(true);
-                                  }}
-                                />
-                              </Tooltip>
-                              <Popconfirm
-                                title="Delete Attribute"
-                                description={`Delete entire "${attr.name}" attribute and all its option values?`}
-                                onConfirm={() => handleDeleteAttribute(attr.id)}
-                                okText="Yes, Delete"
-                                cancelText="Cancel"
-                                okButtonProps={{ danger: true, size: 'small' }}
-                              >
-                                <Tooltip title="Delete Attribute Entirely">
-                                  <Button type="text" danger size="small" icon={<DeleteOutlined className="!text-sm" />} />
-                                </Tooltip>
-                              </Popconfirm>
-                            </Space>
-                          </Flex>
-                        }
-                      >
-                        <div className="min-h-[70px] py-2">
-                          {(attr.values || []).length === 0 ? (
-                            <Text type="secondary" className="!text-xs italic !block !py-2">
-                              No values added yet. Add values below.
-                            </Text>
-                          ) : (
-                            <Space size={[8, 10]} wrap>
-                              {(attr.values || []).map((val) => {
-                                const activeColorHex = val.color_code || (isColorAttr ? detectColorHex(val.value) : null);
-                                return (
-                                  <div
-                                    key={val.id}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-slate-50 hover:bg-white hover:border-teal-500 hover:shadow-sm transition-all group"
+                    <Card
+                      key={index}
+                      className="border border-slate-200 bg-slate-50/75 rounded-lg shadow-sm"
+                      bodyStyle={{ padding: '16px' }}
+                    >
+                      <Row gutter={16} align="middle">
+                        {/* 1. Attribute Selector / Creator */}
+                        <Col xs={24} md={8}>
+                          <Text strong className="block mb-1 text-slate-800">
+                            Option Name
+                          </Text>
+                          <Select
+                            showSearch
+                            size="large"
+                            placeholder="Select option (e.g. Color, Size)"
+                            className="w-full"
+                            value={libraryAttr?.id || row.attribute_id || undefined}
+                            onChange={(val) => handleSelectOrCreateAttribute(index, val)}
+                            filterOption={(input, option) =>
+                              (option?.label || '').toLowerCase().includes(input.toLowerCase())
+                            }
+                            options={orgAttributesLibrary.map((a) => ({
+                              label: `${a.name} (${(a.values || []).length} library values)`,
+                              value: a.id,
+                            }))}
+                            dropdownRender={(menu) => (
+                              <>
+                                {menu}
+                                <Divider style={{ margin: '8px 0' }} />
+                                <div className="p-1">
+                                  <Button
+                                    type="text"
+                                    block
+                                    icon={<PlusOutlined />}
+                                    className="text-teal-600 font-medium hover:bg-teal-50 flex items-center justify-center gap-1.5"
+                                    onClick={() => handleOpenCreateAttrModal(index)}
                                   >
-                                    {activeColorHex && (
-                                      <span
-                                        className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0"
-                                        style={{ backgroundColor: activeColorHex }}
-                                      />
-                                    )}
-                                    <span className="text-slate-800 font-semibold">{val.value}</span>
-
-                                    <div className="flex items-center gap-1 ml-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                                      <Tooltip title="Edit option value">
-                                        <button
-                                          type="button"
-                                          className="p-0.5 text-slate-400 hover:text-teal-600 cursor-pointer rounded transition-colors"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditingVal({ ...val, attributeId: attr.id });
-                                            editValForm.setFieldsValue({
-                                              value: val.value,
-                                              color_code: val.color_code || detectColorHex(val.value),
-                                            });
-                                            setEditValModalOpen(true);
-                                          }}
-                                        >
-                                          <EditOutlined className="!text-[11px]" />
-                                        </button>
-                                      </Tooltip>
-
-                                      <Popconfirm
-                                        title="Delete value"
-                                        description={`Remove option "${val.value}"?`}
-                                        onConfirm={() => handleDeleteAttributeValue(val.id, attr.id)}
-                                        okText="Delete"
-                                        cancelText="Cancel"
-                                        okButtonProps={{ danger: true, size: 'small' }}
-                                      >
-                                        <button
-                                          type="button"
-                                          className="p-0.5 text-slate-400 hover:text-rose-500 cursor-pointer rounded transition-colors"
-                                        >
-                                          <CloseOutlined className="!text-[10px]" />
-                                        </button>
-                                      </Popconfirm>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </Space>
-                          )}
-                        </div>
-
-                        <Divider style={{ margin: '12px 0 14px 0' }} />
-
-                        {/* Add Option Value Inline */}
-                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                          <Flex gap="small" align="center">
-                            <Input
-                              size="middle"
-                              placeholder={`Add ${attr.name} value (e.g. ${isColorAttr ? 'Yellow' : 'XL'})...`}
-                              value={newValInput[attr.id] || ''}
-                              onChange={(e) =>
-                                setNewValInput((prev) => ({ ...prev, [attr.id]: e.target.value }))
-                              }
-                              onPressEnter={() => handleAddAttributeValue(attr.id)}
-                              className="!bg-white"
-                            />
-                            {isColorAttr && (
-                              <input
-                                type="color"
-                                className="!w-9 !h-9 !p-0.5 !border !border-slate-300 !rounded-md !cursor-pointer shrink-0 bg-white"
-                                value={newValColor[attr.id] || detectColorHex(newValInput[attr.id] || '')}
-                                onChange={(e) =>
-                                  setNewValColor((prev) => ({ ...prev, [attr.id]: e.target.value }))
-                                }
-                                title="Pick Custom Swatch Color"
-                              />
+                                    Create New Attribute
+                                  </Button>
+                                </div>
+                              </>
                             )}
-                            <Button
-                              size="middle"
-                              type="primary"
-                              icon={<PlusOutlined />}
-                              style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
-                              onClick={() => handleAddAttributeValue(attr.id)}
-                              className="shrink-0"
+                          />
+                        </Col>
+
+                        {/* 2. Values Tag Matrix */}
+                        <Col xs={24} md={14}>
+                          <Text strong className="block mb-1 text-slate-800">
+                            Option Values
+                          </Text>
+                          <Select
+                            mode="tags"
+                            size="large"
+                            disabled={!libraryAttr && !row.attribute_id}
+                            placeholder={
+                              libraryAttr
+                                ? `Select ${libraryAttr.name} values or type new & press Enter`
+                                : 'Select an option name first'
+                            }
+                            className="w-full"
+                            value={(row.selected_values || []).map((v) => v.value)}
+                            onChange={(vals) => handleSelectOrCreateValues(index, vals)}
+                            options={(libraryAttr?.values || []).map((lv) => ({
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  {lv.color_code && (
+                                    <span
+                                      className="w-3 h-3 rounded-full border border-black/25 inline-block"
+                                      style={{ backgroundColor: lv.color_code }}
+                                    />
+                                  )}
+                                  <span>{lv.value}</span>
+                                </div>
+                              ),
+                              value: lv.value,
+                            }))}
+                            filterOption={(input, option) =>
+                              (option?.value || '').toLowerCase().includes(input.toLowerCase())
+                            }
+                            dropdownRender={(menu) => (
+                              <>
+                                {menu}
+                                <Divider style={{ margin: '8px 0' }} />
+                                <div className="p-1">
+                                  <Button
+                                    type="text"
+                                    block
+                                    icon={<PlusOutlined />}
+                                    className="text-teal-600 font-medium hover:bg-teal-50 flex items-center justify-center gap-1.5"
+                                    onClick={() => handleOpenCreateValueModal(index)}
+                                  >
+                                    Create New Value for {libraryAttr?.name || row.name || 'Attribute'}
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          />
+                        </Col>
+
+                        {/* Remove Option Button */}
+                        <Col xs={24} md={2} className="text-right">
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveAttributeRow(index)}
+                          />
+                        </Col>
+                      </Row>
+
+                      {/* Quick-Pick Chips from Library Values */}
+                      {unselectedLibraryValues.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center gap-2 flex-wrap">
+                          <Text type="secondary" className="text-xs font-medium">
+                            Quick add from library:
+                          </Text>
+                          {unselectedLibraryValues.map((lv) => (
+                            <Tag
+                              key={lv.id}
+                              className="cursor-pointer hover:border-teal-500 hover:text-teal-700 bg-white border-slate-300 flex items-center gap-1.5 py-0.5 px-2 transition-colors"
+                              onClick={() => handleQuickAddLibraryValue(index, lv)}
                             >
-                              Add
-                            </Button>
-                          </Flex>
+                              {(lv.color_code || (libraryAttr?.display_type || row.display_type) === 'color') && (
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full inline-block border border-black/20"
+                                  style={{ backgroundColor: lv.color_code || detectColorHex(lv.value) }}
+                                />
+                              )}
+                              <span className="font-medium text-xs">{lv.value}</span>
+                              <PlusOutlined style={{ fontSize: 9 }} />
+                            </Tag>
+                          ))}
                         </div>
-                      </Card>
-                    </Col>
+                      )}
+                    </Card>
                   );
                 })}
-              </Row>
+
+                <Button
+                  type="dashed"
+                  block
+                  size="large"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddAttributeRow}
+                  className="mt-2 border-slate-300 hover:border-teal-500 hover:text-teal-600 font-medium"
+                >
+                  Add Another Option
+                </Button>
+              </div>
             )}
           </Card>
         </div>
@@ -1600,35 +1811,7 @@ const EditProductPage = () => {
         </Form>
       </Modal>
 
-      {/* ----------------- MODAL: CREATE ATTRIBUTE ----------------- */}
-      <Modal
-        title="Create New Attribute"
-        open={newAttrModalOpen}
-        onCancel={() => setNewAttrModalOpen(false)}
-        footer={null}
-      >
-        <Form form={newAttrForm} layout="vertical" onFinish={handleCreateAttribute}>
-          <Form.Item label="Attribute Name" name="name" rules={[{ required: true }]}>
-            <Input placeholder="e.g. Material, Size, Fit" />
-          </Form.Item>
-          <Form.Item label="Display Type" name="display_type" initialValue="button" rules={[{ required: true }]}>
-            <Select>
-              <Option value="button">Button Pill (e.g. S, M, L)</Option>
-              <Option value="color">Color Swatch (Visual picker)</Option>
-              <Option value="select">Dropdown Select</Option>
-            </Select>
-          </Form.Item>
-          <Button
-            type="primary"
-            htmlType="submit"
-            block
-            loading={isSubmitting}
-            style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
-          >
-            Create Attribute
-          </Button>
-        </Form>
-      </Modal>
+
 
       {/* ----------------- MODAL: EDIT ATTRIBUTE ----------------- */}
       <Modal
@@ -1734,6 +1917,164 @@ const EditProductPage = () => {
           <Button type="primary" htmlType="submit" block style={{ backgroundColor: '#1BA098' }}>
             Create Brand
           </Button>
+        </Form>
+      </Modal>
+
+      {/* ----------------- MODAL: CREATE NEW ATTRIBUTE INLINE ----------------- */}
+      <Modal
+        title="Create New Attribute"
+        open={isAttrModalOpen}
+        onCancel={() => {
+          setIsAttrModalOpen(false);
+          attrModalForm.resetFields();
+        }}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <Form
+          form={attrModalForm}
+          layout="vertical"
+          onFinish={handleCreateAttrSubmit}
+          initialValues={{ display_type: 'button' }}
+          className="mt-4"
+        >
+          <Form.Item
+            name="name"
+            label="Attribute Name"
+            rules={[{ required: true, message: 'Please enter attribute name (e.g. Color, Size, Material)' }]}
+          >
+            <Input placeholder="e.g. Color, Size, Material, Storage" size="large" autoFocus />
+          </Form.Item>
+
+          <Form.Item
+            name="display_type"
+            label="Display Type"
+            tooltip="Controls how options are presented to shoppers on the product page"
+          >
+            <Select size="large">
+              <Option value="button">Button / Pill (e.g. S, M, L)</Option>
+              <Option value="color">Color Swatch (Visual color circle)</Option>
+              <Option value="select">Dropdown Menu</Option>
+            </Select>
+          </Form.Item>
+
+          <Divider style={{ margin: '16px 0' }} />
+
+          <Flex justify="end" gap="middle">
+            <Button
+              onClick={() => {
+                setIsAttrModalOpen(false);
+                attrModalForm.resetFields();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isCreatingAttribute}
+              style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+            >
+              Create Attribute
+            </Button>
+          </Flex>
+        </Form>
+      </Modal>
+
+      {/* ----------------- MODAL: CREATE NEW ATTRIBUTE VALUE INLINE ----------------- */}
+      <Modal
+        title={(() => {
+          if (valueModalTargetRowIndex === null) return 'Create New Option Value';
+          const row = selectedAttributes[valueModalTargetRowIndex];
+          return `Create New Value for ${row?.name || 'Attribute'}`;
+        })()}
+        open={isValueModalOpen}
+        onCancel={() => {
+          setIsValueModalOpen(false);
+          valueModalForm.resetFields();
+        }}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <Form
+          form={valueModalForm}
+          layout="vertical"
+          onFinish={handleCreateValueSubmit}
+          initialValues={{ sort_order: 1, color_code: '#1BA098' }}
+          className="mt-4"
+        >
+          <Form.Item
+            name="value"
+            label="Option Value"
+            rules={[{ required: true, message: 'Please enter option value (e.g. Red, XL, 64GB)' }]}
+          >
+            <Input placeholder="e.g. Red, XL, 64GB, Cotton" size="large" autoFocus />
+          </Form.Item>
+
+          {(() => {
+            const targetRow = valueModalTargetRowIndex !== null ? selectedAttributes[valueModalTargetRowIndex] : null;
+            const targetLibraryAttr = targetRow ? orgAttributesLibrary.find(
+              (a) => (targetRow.attribute_id && a.id === targetRow.attribute_id) || (targetRow.name && a.name?.toLowerCase() === targetRow.name?.toLowerCase())
+            ) : null;
+            const isColorAttr = (targetRow?.display_type === 'color' || targetLibraryAttr?.display_type === 'color' || (targetRow?.name && targetRow.name.toLowerCase().includes('color')));
+
+            return (
+              <Row gutter={16}>
+                {isColorAttr && (
+                  <Col span={14}>
+                    <Form.Item
+                      name="color_code"
+                      label="Color Hex Code"
+                      tooltip="Used for Color Swatches on Storefront (e.g. #FF0000)"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Input placeholder="e.g. #FF0000 or #1BA098" size="large" />
+                        <Form.Item name="color_code" noStyle>
+                          <input
+                            type="color"
+                            className="w-10 h-10 p-0.5 border border-slate-300 rounded cursor-pointer shrink-0"
+                            onChange={(e) => valueModalForm.setFieldsValue({ color_code: e.target.value })}
+                          />
+                        </Form.Item>
+                      </div>
+                    </Form.Item>
+                  </Col>
+                )}
+                <Col span={isColorAttr ? 10 : 24}>
+                  <Form.Item
+                    name="sort_order"
+                    label="Sort Order"
+                    tooltip="Sequence order for listing option values"
+                  >
+                    <InputNumber min={0} className="w-full" size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            );
+          })()}
+
+          <Divider style={{ margin: '16px 0' }} />
+
+          <Flex justify="end" gap="middle">
+            <Button
+              onClick={() => {
+                setIsValueModalOpen(false);
+                valueModalForm.resetFields();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={isCreatingValue}
+              style={{ backgroundColor: '#1BA098', borderColor: '#1BA098' }}
+            >
+              Create Value
+            </Button>
+          </Flex>
         </Form>
       </Modal>
     </div>

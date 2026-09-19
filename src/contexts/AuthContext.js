@@ -32,6 +32,9 @@ export const AuthProvider = ({ children }) => {
             if (response.data.status_code === 1000){
                 const { access, refresh, user_id } = response.data;
                 toast.success(response.data.message)
+                // Clear old user/org session data before saving new credentials
+                localStorage.removeItem('userDetails');
+                localStorage.removeItem('organizationDetails');
                 localStorage.setItem('access', access);
                 localStorage.setItem('refresh', refresh);
                 localStorage.setItem('user', user_id);
@@ -54,6 +57,9 @@ export const AuthProvider = ({ children }) => {
         setAccessToken(null);
         localStorage.removeItem('access');
         localStorage.removeItem('refresh');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userDetails');
+        localStorage.removeItem('organizationDetails');
         router.push('/login');
     };
 

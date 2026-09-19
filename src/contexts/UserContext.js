@@ -69,8 +69,11 @@ export function UserProvider({ children }) {
   }, []);
 
   // Centralized sync function to fetch User and Organization details
-  const refreshUserData = useCallback(async () => {
-    setLoading(true);
+  const refreshUserData = useCallback(async (options = {}) => {
+    const { isInitial = false } = options;
+    if (isInitial) {
+      setLoading(true);
+    }
     try {
       // 1. Fetch User Details & Organizations list in parallel
       const [userRes, orgsRes] = await Promise.allSettled([
@@ -83,6 +86,9 @@ export function UserProvider({ children }) {
 
       if (userData) {
         setUserDetails(userData);
+      } else {
+        clearUserDetails();
+        return { userData: null, orgs: [], targetOrgId: null };
       }
 
       setOrganizationsList(orgs);
@@ -112,11 +118,25 @@ export function UserProvider({ children }) {
       return { userData, orgs, targetOrgId };
     } catch (error) {
       console.error('Error refreshing user context:', error);
+      clearUserDetails();
       return { userData: null, orgs: [], targetOrgId: null };
     } finally {
       setLoading(false);
     }
-  }, [setUserDetails, setOrganizationDetails]);
+  }, [setUserDetails, setOrganizationDetails, clearUserDetails]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access');
+      if (token) {
+        refreshUserData({ isInitial: true });
+      } else {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [refreshUserData]);
 
   return (
     <UserContext.Provider

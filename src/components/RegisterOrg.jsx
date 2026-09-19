@@ -90,7 +90,7 @@ const stepFields = [
 
 export default function RegisterOrg({ isModalVisible, setIsModalVisible }) {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, setOrganizationDetails, refreshUserData } = useUser();
   const [form] = Form.useForm();
   
   const [currentStep, setCurrentStep] = useState(0);
@@ -315,8 +315,9 @@ export default function RegisterOrg({ isModalVisible, setIsModalVisible }) {
       if (isSuccess) {
         const createdOrg = response.data?.data;
         if (createdOrg) {
-          localStorage.setItem('organizationDetails', JSON.stringify(createdOrg));
+          setOrganizationDetails(createdOrg);
         }
+        await refreshUserData();
 
         toast.success(response.data?.message || 'Organization registered successfully!');
         setIsModalVisible(false);
